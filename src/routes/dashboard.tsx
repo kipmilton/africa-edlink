@@ -1,6 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { useApp, type Role, type LocalCourse } from "@/lib/app-context";
+import { useAuth } from "@/lib/use-auth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -57,7 +58,28 @@ function InitialAvatar({ name, className }: { name: string; className?: string }
 /* ---------- Root ---------- */
 function DashboardPage() {
   const { role, setRole, lang } = useApp();
+  const { user, role: authRole, loading } = useAuth();
+  const navigate = useNavigate();
   const T = (en: string, fr: string) => (lang === "en" ? en : fr);
+
+  useEffect(() => {
+    if (!loading && !user) navigate({ to: "/auth" });
+  }, [loading, user, navigate]);
+
+  useEffect(() => {
+    if (authRole) setRole(authRole as Role);
+  }, [authRole, setRole]);
+
+  if (loading || !user) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-16 text-center text-sm text-muted-foreground">
+        {T("Loading your dashboard…", "Chargement de votre tableau de bord…")}
+      </div>
+    );
+  }
+
+  const canSwitch = authRole === "admin";
+  const displayName = (user.email ?? "there").split("@")[0];
 
   return (
     <div className="bg-background">
@@ -66,20 +88,28 @@ function DashboardPage() {
           <div className="min-w-0">
             <p className="text-xs font-bold uppercase tracking-wider text-accent/80">{T("Dashboard", "Tableau de bord")}</p>
             <h1 className="truncate text-2xl font-heading font-extrabold sm:text-3xl">
-              {T("Welcome back, Joseph", "Bon retour, Joseph")}
+              {T(`Welcome back, ${displayName}`, `Bon retour, ${displayName}`)}
             </h1>
           </div>
           <div className="flex shrink-0 items-center gap-3">
-            <span className="hidden text-xs text-muted-foreground sm:inline">{T("View as", "Voir en tant que")}</span>
-            <Select value={role} onValueChange={(v) => setRole(v as Role)}>
-              <SelectTrigger className="w-[160px] rounded-lg border-border"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="student">{T("Student", "Étudiant")}</SelectItem>
-                <SelectItem value="tutor">{T("Tutor", "Tuteur")}</SelectItem>
-                <SelectItem value="admin">{T("Admin", "Admin")}</SelectItem>
-              </SelectContent>
-            </Select>
-            <InitialAvatar name="Joseph" className="h-9 w-9" />
+            {canSwitch ? (
+              <>
+                <span className="hidden text-xs text-muted-foreground sm:inline">{T("View as", "Voir en tant que")}</span>
+                <Select value={role} onValueChange={(v) => setRole(v as Role)}>
+                  <SelectTrigger className="w-[160px] rounded-lg border-border"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="student">{T("Student", "Étudiant")}</SelectItem>
+                    <SelectItem value="tutor">{T("Tutor", "Tuteur")}</SelectItem>
+                    <SelectItem value="admin">{T("Admin", "Admin")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </>
+            ) : (
+              <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide">
+                {authRole === "tutor" ? T("Tutor", "Tuteur") : T("Student", "Étudiant")}
+              </Badge>
+            )}
+            <InitialAvatar name={displayName} className="h-9 w-9" />
           </div>
         </div>
 
