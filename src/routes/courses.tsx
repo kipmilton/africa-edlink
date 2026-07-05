@@ -1,0 +1,150 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useApp } from "@/lib/app-context";
+import { courses } from "@/lib/courses";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { GraduationCap, ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+export const Route = createFileRoute("/courses")({
+  head: () => ({
+    meta: [
+      { title: "Courses — Afritech Academy" },
+      {
+        name: "description",
+        content:
+          "Browse our bilingual EN/FR advanced tech tracks across Full Stack, AI, ML, Data and Cybersecurity.",
+      },
+      {
+        property: "og:title",
+        content: "Courses — Afritech Academy",
+      },
+      {
+        property: "og:description",
+        content: "Bilingual EN/FR cohorts across Africa.",
+      },
+    ],
+  }),
+  component: CoursesPage,
+});
+
+function CourseImage({
+  src,
+  alt,
+  className,
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+}) {
+  return <img src={src} alt={alt} className={cn("h-full w-full object-cover", className)} />;
+}
+
+function CoursesPage() {
+  const { t, lang } = useApp();
+  return (
+    <div className="bg-background">
+      {/* Header */}
+      <section className="border-b border-border bg-white">
+        <div className="container-section py-16 sm:py-20">
+          <Badge
+            variant="secondary"
+            className="rounded-full border border-border bg-muted/40 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+          >
+            Programs
+          </Badge>
+          <h1 className="mt-4 font-heading text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl">
+            {t("courses.title")}
+          </h1>
+          <p className="mt-3 max-w-2xl text-lg text-muted-foreground">
+            {lang === "en"
+              ? "Industry-designed tracks delivered in English and French — built for the African tech ecosystem."
+              : "Parcours conçus par l'industrie, dispensés en anglais et en français — adaptés à l'écosystème tech africain."}
+          </p>
+        </div>
+      </section>
+
+      {/* Course grid */}
+      <section className="container-section py-12 sm:py-16">
+        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+          {courses.map((c) => (
+            <Card
+              key={c.id}
+              className="group flex flex-col overflow-hidden rounded-xl border bg-white p-0 transition-all duration-200 card-hover"
+            >
+              {/* Course image */}
+              <div className="relative h-52 w-full overflow-hidden">
+                <CourseImage src={c.image} alt={c.title[lang]} className="h-full w-full" />
+              </div>
+
+              <div className="flex flex-1 flex-col p-6">
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className="font-heading text-lg font-bold text-foreground">
+                    {c.title[lang]}
+                  </h3>
+                  <Badge
+                    variant={c.delivery === "online" ? "default" : "secondary"}
+                    className={cn(
+                      "shrink-0 rounded-full px-3 py-0.5 text-xs font-semibold",
+                      c.delivery === "online"
+                        ? "bg-primary/10 text-primary hover:bg-primary/20"
+                        : "bg-accent/10 text-accent hover:bg-accent/20",
+                    )}
+                  >
+                    {c.delivery === "online"
+                      ? t("courses.online")
+                      : t("courses.physical")}
+                  </Badge>
+                </div>
+
+                <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                  {c.desc[lang]}
+                </p>
+
+                <p className="mt-4 text-sm leading-relaxed text-foreground/80">
+                  {c.what[lang]}
+                </p>
+
+                <div className="mt-auto flex gap-3 pt-6">
+                  <Button className="flex-1 rounded-lg">
+                    {t("courses.enroll")}
+                  </Button>
+                  <Button variant="outline" className="flex-1 rounded-lg">
+                    {t("courses.learn")}
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      {/* Bottom CTA */}
+      <section className="bg-primary py-16">
+        <div className="container-section text-center">
+          <h2 className="font-heading text-3xl font-extrabold text-primary-foreground sm:text-4xl">
+            {lang === "en"
+              ? "Ready to start your journey?"
+              : "Prêt à commencer votre parcours ?"}
+          </h2>
+          <p className="mx-auto mt-3 max-w-lg text-primary-foreground/80">
+            {lang === "en"
+              ? "Join a cohort of 5–10 learners and build your future in tech."
+              : "Rejoignez une cohorte de 5 à 10 apprenants et construisez votre avenir dans la tech."}
+          </p>
+          <Button
+            asChild
+            size="lg"
+            variant="secondary"
+            className="mt-8 rounded-xl px-8 py-6 text-base font-bold shadow-sm"
+          >
+            <Link to="/contact">
+              Apply Now <ChevronRight className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
+        </div>
+      </section>
+    </div>
+  );
+}
