@@ -1,9 +1,10 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Globe, Menu, X, ChevronDown } from "lucide-react";
+import { Globe, Menu, X, ChevronDown, LogOut, User as UserIcon } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useApp } from "@/lib/app-context";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/use-auth";
 
 /* ---------- Mega menu data ---------- */
 
@@ -92,9 +93,11 @@ function Dropdown({
 
 export function Navbar() {
   const { t, lang, setLang } = useApp();
+  const { user, role, signOut } = useAuth();
   const path = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const [userMenu, setUserMenu] = useState(false);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
@@ -177,9 +180,40 @@ export function Navbar() {
               FR
             </button>
           </div>
-          <Button asChild size="sm" className="hidden sm:inline-flex rounded-lg">
-            <Link to="/dashboard">{t("nav.dashboard")}</Link>
-          </Button>
+          {user ? (
+            <div className="relative hidden sm:block">
+              <button
+                onClick={() => setUserMenu((o) => !o)}
+                className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium hover:bg-muted"
+              >
+                <div className="grid h-6 w-6 place-items-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                  {(user.email ?? "?")[0].toUpperCase()}
+                </div>
+                <span className="max-w-[120px] truncate">{user.email}</span>
+                <ChevronDown className="h-3.5 w-3.5" />
+              </button>
+              {userMenu && (
+                <div className="absolute right-0 mt-2 w-56 rounded-xl border border-border bg-card p-2 shadow-xl">
+                  <div className="border-b border-border px-3 pb-2 text-xs text-muted-foreground">
+                    Signed in as <span className="font-semibold text-foreground">{role ?? "student"}</span>
+                  </div>
+                  <Link to="/dashboard" onClick={() => setUserMenu(false)} className="mt-1 flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-muted">
+                    <UserIcon className="h-4 w-4" /> Dashboard
+                  </Link>
+                  <button
+                    onClick={async () => { setUserMenu(false); await signOut(); }}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-destructive hover:bg-destructive/10"
+                  >
+                    <LogOut className="h-4 w-4" /> Sign out
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <Button asChild size="sm" className="hidden sm:inline-flex rounded-lg">
+              <Link to="/auth">Sign In</Link>
+            </Button>
+          )}
           <button
             className="md:hidden"
             onClick={() => { setOpen((o) => !o); setActiveDropdown(null); }}
@@ -203,13 +237,23 @@ export function Navbar() {
             <MobileNavLink to="/contact" onClick={() => setOpen(false)}>
               Contact
             </MobileNavLink>
-            <Link
-              to="/dashboard"
-              onClick={() => setOpen(false)}
-              className="mt-3 flex items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground"
-            >
-              {t("nav.dashboard")}
-            </Link>
+            {user ? (
+              <>
+                <Link to="/dashboard" onClick={() => setOpen(false)} className="mt-3 flex items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground">
+                  Dashboard
+                </Link>
+                <button
+                  onClick={async () => { setOpen(false); await signOut(); }}
+                  className="mt-2 flex items-center justify-center rounded-lg border border-destructive/40 px-4 py-2.5 text-sm font-bold text-destructive"
+                >
+                  Sign out
+                </button>
+              </>
+            ) : (
+              <Link to="/auth" onClick={() => setOpen(false)} className="mt-3 flex items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground">
+                Sign In
+              </Link>
+            )}
             <div className="mt-4 flex items-center justify-center gap-2">
               <button
                 onClick={() => setLang("en")}
