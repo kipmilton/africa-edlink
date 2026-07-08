@@ -57,7 +57,7 @@ function AuthPage() {
     <div className="min-h-[calc(100vh-4rem)] grid place-items-center bg-gradient-to-br from-primary/5 via-background to-accent/5 px-4 py-16">
       <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-xl">
         <Link to="/" className="mb-6 block text-center font-heading text-2xl font-extrabold text-foreground">
-          Afritech<span className="text-accent">.</span>Academy
+          Serenog
         </Link>
         <h1 className="mb-1 text-center text-2xl font-bold text-foreground">
           {mode === "signin" ? "Welcome back" : "Create your account"}
@@ -87,7 +87,7 @@ function AuthPage() {
           </Button>
         </form>
         <div className="mt-6 text-center text-sm text-muted-foreground">
-          {mode === "signin" ? "New to Afritech?" : "Already have an account?"}{" "}
+          {mode === "signin" ? "New to Serenog?" : "Already have an account?"}{" "}
           <button
             type="button"
             className="font-semibold text-primary hover:underline"

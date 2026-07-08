@@ -7,14 +7,14 @@ import { MessageSquare, Users, Calendar, MapPin, GraduationCap } from "lucide-re
 export const Route = createFileRoute("/community")({
   head: () => ({
     meta: [
-      { title: "Community — Afritech Academy" },
+      { title: "Community — Serenog" },
       {
         name: "description",
         content: "Join our pan-African alumni network, events, and cohort communities.",
       },
       {
         property: "og:title",
-        content: "Community — Afritech Academy",
+        content: "Community — Serenog",
       },
       {
         property: "og:description",

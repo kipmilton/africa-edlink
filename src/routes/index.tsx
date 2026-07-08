@@ -26,7 +26,7 @@ export const Route = createFileRoute("/")({
     meta: [
       {
         title:
-          "Afritech Academy — Bilingual Tech Education for Africa",
+          "Serenog — Bilingual Tech Education for Africa",
       },
       {
         name: "description",
@@ -35,7 +35,7 @@ export const Route = createFileRoute("/")({
       },
       {
         property: "og:title",
-        content: "Afritech Academy",
+        content: "Serenog",
       },
       {
         property: "og:description",
@@ -67,7 +67,7 @@ function HeroImage() {
     <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl">
       <img
         src={heroImg}
-        alt="Afritech Academy campus and learning environment"
+        alt="Serenog campus and learning environment"
         className="h-full w-full object-cover"
       />
     </div>

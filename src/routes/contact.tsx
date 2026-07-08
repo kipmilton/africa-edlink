@@ -12,14 +12,14 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/contact")({
   head: () => ({
     meta: [
-      { title: "Contact Us — Afritech Academy" },
+      { title: "Contact Us — Serenog" },
       {
         name: "description",
         content: "Talk to admissions, partnerships, or our regional teams across Africa.",
       },
       {
         property: "og:title",
-        content: "Contact Afritech Academy",
+        content: "Contact Serenog",
       },
       {
         property: "og:description",
@@ -110,7 +110,7 @@ function ContactPage() {
                 <Mail className="h-5 w-5" />
               </div>
               <p className="mt-4 text-sm font-bold text-foreground">Email</p>
-              <p className="mt-1 text-sm text-muted-foreground">hello@afritech.academy</p>
+              <p className="mt-1 text-sm text-muted-foreground">hello@serenog.com</p>
             </Card>
             <Card className="rounded-xl border bg-white p-6 shadow-sm card-hover">
               <div className="grid h-10 w-10 place-items-center rounded-lg bg-primary/10 text-primary">

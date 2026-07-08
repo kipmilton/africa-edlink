@@ -32,6 +32,7 @@ const communityItems = [
   { to: "/community", label: "Alumni" },
   { to: "/community", label: "Scholarships" },
   { to: "/community", label: "FAQs" },
+  { to: "/careers", label: "Careers" },
 ];
 
 type MegaMenu = {
@@ -100,15 +101,15 @@ export function Navbar() {
   const [userMenu, setUserMenu] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
+    <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-white/95 backdrop-blur supports-backdrop-filter:bg-white/80">
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:px-6 lg:px-8">
         {/* Logo */}
         <Link to="/" className="flex shrink-0 items-center gap-2.5">
           <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground font-heading text-lg font-extrabold leading-none tracking-tight">
-            A
+            S
           </div>
           <span className="font-heading text-lg font-extrabold tracking-tight text-foreground">
-            Afritech<span className="text-accent">.</span>Academy
+            Serenog
           </span>
         </Link>
 
@@ -189,7 +190,7 @@ export function Navbar() {
                 <div className="grid h-6 w-6 place-items-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
                   {(user.email ?? "?")[0].toUpperCase()}
                 </div>
-                <span className="max-w-[120px] truncate">{user.email}</span>
+                <span className="max-w-30 truncate">{user.email}</span>
                 <ChevronDown className="h-3.5 w-3.5" />
               </button>
               {userMenu && (

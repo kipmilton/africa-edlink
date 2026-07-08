@@ -89,6 +89,41 @@ create policy "Published courses are public" on public.courses for select
 create policy "Admins manage courses" on public.courses for all to authenticated
   using (public.has_role(auth.uid(), 'admin')) with check (public.has_role(auth.uid(), 'admin'));
 
+-- 6. Tutor applications
+create table if not exists public.tutor_applications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete set null,
+  full_name text not null,
+  email text not null,
+  phone text,
+  country text,
+  specialization text,
+  bio text,
+  experience text,
+  resume_name text,
+  resume_size bigint,
+  resume_url text,
+  status text not null default 'pending' check (status in ('pending', 'approved', 'rejected')),
+  assigned_cohort text,
+  created_at timestamptz not null default now()
+);
+grant select on public.tutor_applications to authenticated;
+grant all on public.tutor_applications to service_role;
+alter table public.tutor_applications enable row level security;
+
+create policy "Admins manage tutor applications" on public.tutor_applications
+  for all to authenticated
+  using (public.has_role(auth.uid(), 'admin'))
+  with check (public.has_role(auth.uid(), 'admin'));
+
+create policy "Users insert applications" on public.tutor_applications
+  for insert to authenticated
+  with check (auth.uid() = user_id);
+
+-- Create a storage bucket for tutor resumes in Supabase Storage: "tutor-resumes"
+-- Use the Supabase dashboard or the CLI to create the bucket, then grant
+-- read access to your expected consumers if you want resumes to be publicly accessible.
+
 -- =========================================================
 -- After signing up once through the app, promote yourself:
 --   insert into public.user_roles (user_id, role)

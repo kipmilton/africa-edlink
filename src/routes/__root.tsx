@@ -81,14 +81,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Afritech Academy — Bilingual Tech Education for Africa" },
+      { title: "Serenog — Bilingual Tech Education for Africa" },
       { name: "description", content: "Pan-African EdTech platform delivering Full Stack, AI, ML, Data Science and Cybersecurity tracks in English and French." },
-      { name: "author", content: "Afritech Academy" },
-      { property: "og:title", content: "Afritech Academy" },
+      { name: "author", content: "Serenog" },
+      { property: "og:title", content: "Serenog" },
       { property: "og:description", content: "Bilingual tech education for West, Central and East Africa." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@AfritechAcademy" },
+      { name: "twitter:site", content: "@Serenog" },
     ],
     links: [
       {

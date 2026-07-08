@@ -18,6 +18,9 @@ export type TutorApplication = {
   specialization: string;
   bio: string;
   experience: string;
+  resumeName?: string;
+  resumeSize?: number;
+  resumeUrl?: string;
   status: "pending" | "approved" | "rejected";
   assignedCohort: string;
   createdAt: string;

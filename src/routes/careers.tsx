@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useApp } from "@/lib/app-context";
+import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,20 +27,20 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/careers")({
   head: () => ({
     meta: [
-      { title: "Careers — Afritech Academy" },
+      { title: "Careers — Serenog" },
       {
         name: "description",
         content:
-          "Join our faculty as a tutor. Apply to teach at Afritech Academy and shape the next generation of African tech talent.",
+          "Join our faculty as a tutor. Apply to teach at Serenog and shape the next generation of African tech talent.",
       },
       {
         property: "og:title",
-        content: "Careers — Afritech Academy",
+        content: "Careers — Serenog",
       },
       {
         property: "og:description",
         content:
-          "Apply to teach, mentor, and build with Afritech Academy.",
+          "Apply to teach, mentor, and build with Serenog.",
       },
     ],
   }),
@@ -63,7 +64,7 @@ const specializations = [
 
 function CareersHeroPlaceholder() {
   return (
-    <div className="aspect-[4/3] w-full overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 via-background to-accent/10 grid place-items-center">
+    <div className="aspect-4/3 w-full overflow-hidden rounded-2xl bg-linear-to-br from-primary/10 via-background to-accent/10 grid place-items-center">
       <GraduationCap className="h-16 w-16 text-primary/30" />
     </div>
   );
@@ -82,10 +83,61 @@ function CareersPage() {
   const [specialization, setSpecialization] = useState(specializations[0]);
   const [bio, setBio] = useState("");
   const [experience, setExperience] = useState("");
+  const [resume, setResume] = useState<File | null>(null);
+  const [resumeError, setResumeError] = useState("");
+  const [uploadingResume, setUploadingResume] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleResumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    setResumeError("");
+    if (!file) {
+      setResume(null);
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setResume(null);
+      setResumeError(
+        T(
+          "File must be smaller than 5MB.",
+          "Le fichier doit être inférieur à 5 Mo.",
+        ),
+      );
+      return;
+    }
+    setResume(file);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (resumeError) return;
+    let resumeUrl: string | undefined;
+    let resumeName: string | undefined;
+    let resumeSize: number | undefined;
+
+    if (resume) {
+      setUploadingResume(true);
+      const filePath = `tutor-resumes/${crypto.randomUUID()}_${resume.name.replace(/\s+/g, "_")}`;
+      const { error: uploadError } = await supabase.storage
+        .from("tutor-resumes")
+        .upload(filePath, resume, { upsert: false });
+      setUploadingResume(false);
+      if (uploadError) {
+        setResumeError(
+          T(
+            "Resume upload failed. Please try again.",
+            "Le téléchargement du CV a échoué. Veuillez réessayer.",
+          ),
+        );
+        toast.error(uploadError.message);
+        return;
+      }
+      const { data } = supabase.storage.from("tutor-resumes").getPublicUrl(filePath);
+      resumeUrl = data.publicUrl;
+      resumeName = resume.name;
+      resumeSize = resume.size;
+    }
+
     addTutorApplication({
       fullName,
       email,
@@ -94,6 +146,9 @@ function CareersPage() {
       specialization,
       bio,
       experience,
+      resumeName,
+      resumeSize,
+      resumeUrl,
     });
     setSubmitted(true);
     toast.success(
@@ -316,6 +371,28 @@ function CareersPage() {
                 />
               </div>
               <div className="grid gap-2">
+                <Label htmlFor="resume" className="text-sm font-medium">
+                  {T("Upload your CV", "Téléchargez votre CV")}
+                </Label>
+                <div className="rounded-xl border border-border bg-muted/50 px-4 py-3">
+                  <input
+                    id="resume"
+                    type="file"
+                    accept=".pdf,.doc,.docx"
+                    onChange={handleResumeChange}
+                    className="w-full text-sm text-foreground file:cursor-pointer file:rounded-full file:border-0 file:bg-primary file:px-3 file:py-2 file:text-sm file:font-semibold file:text-primary-foreground"
+                  />
+                  {resume && (
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      {resume.name} · {(resume.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  )}
+                  {resumeError && (
+                    <p className="mt-2 text-sm text-destructive">{resumeError}</p>
+                  )}
+                </div>
+              </div>
+              <div className="grid gap-2">
                 <Label htmlFor="bio" className="text-sm font-medium">
                   {T("Bio & Teaching Philosophy", "Bio et Philosophie d'Enseignement")}
                 </Label>
@@ -323,12 +400,12 @@ function CareersPage() {
                   id="bio"
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
-                  className="min-h-[120px] rounded-lg"
+                  className="min-h-30 rounded-lg"
                   rows={4}
                   required
                   placeholder={T(
-                    "Tell us about your background, teaching approach, and why you want to join Afritech Academy...",
-                    "Parlez-nous de votre parcours, de votre approche pédagogique et de pourquoi vous souhaitez rejoindre Afritech Academy...",
+                    "Tell us about your background, teaching approach, and why you want to join Serenog...",
+                    "Parlez-nous de votre parcours, de votre approche pédagogique et de pourquoi vous souhaitez rejoindre Serenog...",
                   )}
                 />
               </div>

@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard")({
-  head: () => ({ meta: [{ title: "Dashboard — Afritech Academy" }] }),
+  head: () => ({ meta: [{ title: "Dashboard — Serenog" }] }),
   component: DashboardPage,
 });
 
@@ -96,7 +96,7 @@ function DashboardPage() {
               <>
                 <span className="hidden text-xs text-muted-foreground sm:inline">{T("View as", "Voir en tant que")}</span>
                 <Select value={role} onValueChange={(v) => setRole(v as Role)}>
-                  <SelectTrigger className="w-[160px] rounded-lg border-border"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-40 rounded-lg border-border"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="student">{T("Student", "Étudiant")}</SelectItem>
                     <SelectItem value="tutor">{T("Tutor", "Tuteur")}</SelectItem>
@@ -267,7 +267,7 @@ function StudentDash() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {seedRecordings.map((r) => (
             <Card key={r.id} className="cursor-pointer overflow-hidden p-0 transition-all hover:-translate-y-1 hover:shadow-lg" onClick={() => setPlaying(r)}>
-              <div className="relative grid aspect-video place-items-center bg-gradient-to-br from-primary/80 to-accent">
+              <div className="relative grid aspect-video place-items-center bg-linear-to-br from-primary/80 to-accent">
                 <div className="grid h-14 w-14 place-items-center rounded-full bg-white/20 backdrop-blur">
                   <Play className="h-6 w-6 text-white" fill="white" />
                 </div>
@@ -301,7 +301,7 @@ function StudentDash() {
             <Button variant="outline" size="sm" className="mt-4 w-full">{T("Open brief", "Ouvrir le brief")}</Button>
           </Card>
         ))}
-        <Card className="p-6 lg:col-span-3 bg-gradient-to-r from-primary to-accent text-primary-foreground">
+        <Card className="p-6 lg:col-span-3 bg-linear-to-r from-primary to-accent text-primary-foreground">
           <div className="flex items-center gap-4">
             <Award className="h-10 w-10" />
             <div>
@@ -466,7 +466,7 @@ function TutorDash() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {recordings.map((r) => (
             <Card key={r.id} className="cursor-pointer overflow-hidden p-0 transition-all hover:-translate-y-1 hover:shadow-lg" onClick={() => setPlaying(r)}>
-              <div className="relative grid aspect-video place-items-center bg-gradient-to-br from-primary/80 to-accent">
+              <div className="relative grid aspect-video place-items-center bg-linear-to-br from-primary/80 to-accent">
                 <div className="grid h-14 w-14 place-items-center rounded-full bg-white/20 backdrop-blur">
                   <Play className="h-6 w-6 text-white" fill="white" />
                 </div>
@@ -721,6 +721,24 @@ function AdminTutorsPanel({ T }: { T: (en: string, fr: string) => string }) {
                       <span>{T("Experience", "Expérience")}: {app.experience}</span>
                       <span>{new Date(app.createdAt).toLocaleDateString()}</span>
                     </div>
+                    {app.resumeName ? (
+                      <div className="mt-3 text-sm text-muted-foreground">
+                        <span className="font-medium text-foreground">{T("Resume", "CV")}:</span>{" "}
+                        {app.resumeUrl ? (
+                          <a
+                            href={app.resumeUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-primary hover:underline"
+                          >
+                            {app.resumeName}
+                          </a>
+                        ) : (
+                          <span>{app.resumeName}</span>
+                        )}
+                        {app.resumeSize ? ` · ${(app.resumeSize / 1024 / 1024).toFixed(2)} MB` : ""}
+                      </div>
+                    ) : null}
                     <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{app.bio}</p>
                   </div>
                   <div className="flex shrink-0 gap-2">
@@ -854,7 +872,7 @@ function AdminCoursesPanel({ T }: { T: (en: string, fr: string) => string }) {
             {c.image ? (
               <img src={c.image} alt="" className="h-36 w-full object-cover" />
             ) : (
-              <div className="grid h-36 w-full place-items-center bg-gradient-to-br from-primary/20 to-accent/20 text-2xl font-black text-primary">
+              <div className="grid h-36 w-full place-items-center bg-linear-to-br from-primary/20 to-accent/20 text-2xl font-black text-primary">
                 {c.title[lang].slice(0, 2).toUpperCase()}
               </div>
             )}
