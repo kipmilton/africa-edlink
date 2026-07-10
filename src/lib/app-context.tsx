@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { courses as seedCourses, type Course } from "@/lib/courses";
 
 export type Lang = "en" | "fr";
@@ -49,6 +49,43 @@ const dict: Record<string, { en: string; fr: string }> = {
   "nav.contact": { en: "Contact Us", fr: "Contactez-nous" },
   "nav.dashboard": { en: "Dashboard", fr: "Tableau de bord" },
   "nav.signin": { en: "Sign In", fr: "Connexion" },
+  "nav.signout": { en: "Sign out", fr: "Déconnexion" },
+  "nav.signedinAs": { en: "Signed in as", fr: "Connecté en tant que" },
+  "nav.menu": { en: "Menu", fr: "Menu" },
+  "nav.mega.softwareengineering": { en: "Software Engineering", fr: "Ingénierie Logicielle" },
+  "nav.mega.ai": { en: "Artificial Intelligence", fr: "Intelligence Artificielle" },
+  "nav.mega.ml": { en: "Machine Learning", fr: "Apprentissage Automatique" },
+  "nav.mega.dataanalytics": { en: "Data Analytics", fr: "Analyse de Données" },
+  "nav.mega.datascience": { en: "Data Science", fr: "Science des Données" },
+  "nav.mega.cybersecurity": { en: "Cybersecurity", fr: "Cybersécurité" },
+  "nav.mega.viewall": { en: "View All Courses", fr: "Voir tous les cours" },
+  "nav.mega.about": { en: "About Us", fr: "À propos" },
+  "nav.mega.leadership": { en: "Leadership", fr: "Direction" },
+  "nav.mega.ourstory": { en: "Our Story", fr: "Notre histoire" },
+  "nav.mega.careers": { en: "Careers", fr: "Carrières" },
+  "nav.mega.contact": { en: "Contact", fr: "Contact" },
+  "nav.mega.events": { en: "Events", fr: "Événements" },
+  "nav.mega.blog": { en: "Blog", fr: "Blog" },
+  "nav.mega.alumni": { en: "Alumni", fr: "Anciens élèves" },
+  "nav.mega.scholarships": { en: "Scholarships", fr: "Bourses" },
+  "nav.mega.faqs": { en: "FAQs", fr: "FAQ" },
+
+  "auth.title.signin": { en: "Welcome back", fr: "Bon retour" },
+  "auth.title.signup": { en: "Create your account", fr: "Créez votre compte" },
+  "auth.subtitle.signin": { en: "Sign in to access your dashboard", fr: "Connectez-vous pour accéder à votre tableau de bord" },
+  "auth.subtitle.signup": { en: "Join thousands of learners across Africa", fr: "Rejoignez des milliers d'apprenants à travers l'Afrique" },
+  "auth.fullName": { en: "Full name", fr: "Nom complet" },
+  "auth.email": { en: "Email", fr: "Courriel" },
+  "auth.password": { en: "Password", fr: "Mot de passe" },
+  "auth.submit.busy": { en: "Please wait…", fr: "Veuillez patienter…" },
+  "auth.submit.signin": { en: "Sign In", fr: "Connexion" },
+  "auth.submit.signup": { en: "Sign Up", fr: "Créer un compte" },
+  "auth.switch.new": { en: "New to Serenog?", fr: "Nouveau sur Serenog ?" },
+  "auth.switch.existing": { en: "Already have an account?", fr: "Vous avez déjà un compte ?" },
+  "auth.switch.create": { en: "Create account", fr: "Créer un compte" },
+  "auth.switch.signin": { en: "Sign in", fr: "Se connecter" },
+  "auth.toast.accountCreated": { en: "Account created. Check your email to confirm, then sign in.", fr: "Compte créé. Vérifiez votre courriel pour confirmer, puis connectez-vous." },
+  "auth.toast.welcome": { en: "Welcome back!", fr: "Bon retour !" },
 
   "hero.eyebrow": { en: "Bilingual Tech Education for Africa", fr: "Formation Tech Bilingue pour l'Afrique" },
   "hero.title": { en: "Master Tomorrow's Tech, in Your Language", fr: "Maîtrisez la Tech de Demain, dans Votre Langue" },
@@ -124,6 +161,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<Role>("student");
   const [courses, setCourses] = useState<LocalCourse[]>(seedCourses);
   const [tutorApplications, setTutorApplications] = useState<TutorApplication[]>([]);
+
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
 
   const addCourse = (c: LocalCourse) => setCourses((prev) => [c, ...prev]);
 

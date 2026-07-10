@@ -8,42 +8,44 @@ import { useAuth } from "@/lib/use-auth";
 
 /* ---------- Mega menu data ---------- */
 
-const coursesItems = [
-  { to: "/courses", label: "Software Engineering" },
-  { to: "/courses", label: "Artificial Intelligence" },
-  { to: "/courses", label: "Machine Learning" },
-  { to: "/courses", label: "Data Analytics" },
-  { to: "/courses", label: "Data Science" },
-  { to: "/courses", label: "Cybersecurity" },
-  { to: "/courses", label: "View All Courses" },
-];
+function getMegaMenus(t: (key: string) => string) {
+  const coursesItems = [
+    { to: "/courses", label: t("nav.mega.softwareengineering") },
+    { to: "/courses", label: t("nav.mega.ai") },
+    { to: "/courses", label: t("nav.mega.ml") },
+    { to: "/courses", label: t("nav.mega.dataanalytics") },
+    { to: "/courses", label: t("nav.mega.datascience") },
+    { to: "/courses", label: t("nav.mega.cybersecurity") },
+    { to: "/courses", label: t("nav.mega.viewall") },
+  ];
 
-const aboutItems = [
-  { to: "/about", label: "About Us" },
-  { to: "/about", label: "Leadership" },
-  { to: "/about", label: "Our Story" },
-  { to: "/careers", label: "Careers" },
-  { to: "/contact", label: "Contact" },
-];
+  const aboutItems = [
+    { to: "/about", label: t("nav.mega.about") },
+    { to: "/about", label: t("nav.mega.leadership") },
+    { to: "/about", label: t("nav.mega.ourstory") },
+    { to: "/careers", label: t("nav.mega.careers") },
+    { to: "/contact", label: t("nav.mega.contact") },
+  ];
 
-const communityItems = [
-  { to: "/community", label: "Events" },
-  { to: "/community", label: "Blog" },
-  { to: "/community", label: "Alumni" },
-  { to: "/community", label: "Scholarships" },
-  { to: "/community", label: "FAQs" },
-  { to: "/careers", label: "Careers" },
-];
+  const communityItems = [
+    { to: "/community", label: t("nav.mega.events") },
+    { to: "/community", label: t("nav.mega.blog") },
+    { to: "/community", label: t("nav.mega.alumni") },
+    { to: "/community", label: t("nav.mega.scholarships") },
+    { to: "/community", label: t("nav.mega.faqs") },
+    { to: "/careers", label: t("nav.mega.careers") },
+  ];
+
+  return {
+    courses: { label: t("nav.courses"), items: coursesItems },
+    about: { label: t("nav.about"), items: aboutItems },
+    community: { label: t("nav.community"), items: communityItems },
+  };
+}
 
 type MegaMenu = {
   label: string;
   items: { to: string; label: string }[];
-};
-
-const megaMenus: Record<string, MegaMenu> = {
-  courses: { label: "Courses", items: coursesItems },
-  about: { label: "About", items: aboutItems },
-  community: { label: "Community", items: communityItems },
 };
 
 /* ---------- MegaMenu dropdown ---------- */
@@ -55,7 +57,6 @@ function Dropdown({
   menu: MegaMenu;
   onClose: () => void;
 }) {
-  const { t } = useApp();
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -99,6 +100,7 @@ export function Navbar() {
   const [open, setOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [userMenu, setUserMenu] = useState(false);
+  const megaMenus = getMegaMenus(t);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-white/95 backdrop-blur supports-backdrop-filter:bg-white/80">
@@ -116,7 +118,7 @@ export function Navbar() {
         {/* Desktop nav */}
         <nav className="ml-10 hidden flex-1 items-center gap-0.5 md:flex">
           <NavLink to="/" active={path === "/"} onClose={() => setActiveDropdown(null)}>
-            Home
+            {t("nav.home")}
           </NavLink>
           {Object.entries(megaMenus).map(([key, menu]) => (
             <div
@@ -150,7 +152,7 @@ export function Navbar() {
             </div>
           ))}
           <NavLink to="/contact" active={path === "/contact"} onClose={() => setActiveDropdown(null)}>
-            Contact
+            {t("nav.contact")}
           </NavLink>
         </nav>
 
@@ -196,29 +198,29 @@ export function Navbar() {
               {userMenu && (
                 <div className="absolute right-0 mt-2 w-56 rounded-xl border border-border bg-card p-2 shadow-xl">
                   <div className="border-b border-border px-3 pb-2 text-xs text-muted-foreground">
-                    Signed in as <span className="font-semibold text-foreground">{role ?? "student"}</span>
+                    {t("nav.signedinAs")} <span className="font-semibold text-foreground">{t(`role.${role ?? "student"}`)}</span>
                   </div>
                   <Link to="/dashboard" onClick={() => setUserMenu(false)} className="mt-1 flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-muted">
-                    <UserIcon className="h-4 w-4" /> Dashboard
+                    <UserIcon className="h-4 w-4" /> {t("nav.dashboard")}
                   </Link>
                   <button
                     onClick={async () => { setUserMenu(false); await signOut(); }}
                     className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-destructive hover:bg-destructive/10"
                   >
-                    <LogOut className="h-4 w-4" /> Sign out
+                    <LogOut className="h-4 w-4" /> {t("nav.signout")}
                   </button>
                 </div>
               )}
             </div>
           ) : (
             <Button asChild size="sm" className="hidden sm:inline-flex rounded-lg">
-              <Link to="/auth">Sign In</Link>
+              <Link to="/auth">{t("nav.signin")}</Link>
             </Button>
           )}
           <button
             className="md:hidden"
             onClick={() => { setOpen((o) => !o); setActiveDropdown(null); }}
-            aria-label="menu"
+            aria-label={t("nav.menu")}
           >
             {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
@@ -230,29 +232,29 @@ export function Navbar() {
         <div className="border-t border-border bg-white md:hidden animate-in slide-in-from-top-2 duration-200">
           <div className="flex flex-col gap-1 px-4 pb-6 pt-3">
             <MobileNavLink to="/" onClick={() => setOpen(false)}>
-              Home
+              {t("nav.home")}
             </MobileNavLink>
-            <MobileSection label="Courses" items={coursesItems} onClick={() => setOpen(false)} />
-            <MobileSection label="About" items={aboutItems} onClick={() => setOpen(false)} />
-            <MobileSection label="Community" items={communityItems} onClick={() => setOpen(false)} />
+            <MobileSection label={t("nav.courses")} items={megaMenus.courses.items} onClick={() => setOpen(false)} />
+            <MobileSection label={t("nav.about")} items={megaMenus.about.items} onClick={() => setOpen(false)} />
+            <MobileSection label={t("nav.community")} items={megaMenus.community.items} onClick={() => setOpen(false)} />
             <MobileNavLink to="/contact" onClick={() => setOpen(false)}>
-              Contact
+              {t("nav.contact")}
             </MobileNavLink>
             {user ? (
               <>
                 <Link to="/dashboard" onClick={() => setOpen(false)} className="mt-3 flex items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground">
-                  Dashboard
+                  {t("nav.dashboard")}
                 </Link>
                 <button
                   onClick={async () => { setOpen(false); await signOut(); }}
                   className="mt-2 flex items-center justify-center rounded-lg border border-destructive/40 px-4 py-2.5 text-sm font-bold text-destructive"
                 >
-                  Sign out
+                  {t("nav.signout")}
                 </button>
               </>
             ) : (
               <Link to="/auth" onClick={() => setOpen(false)} className="mt-3 flex items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground">
-                Sign In
+                {t("nav.signin")}
               </Link>
             )}
             <div className="mt-4 flex items-center justify-center gap-2">

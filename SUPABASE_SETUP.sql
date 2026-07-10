@@ -119,14 +119,3 @@ create policy "Admins manage tutor applications" on public.tutor_applications
 create policy "Users insert applications" on public.tutor_applications
   for insert to authenticated
   with check (auth.uid() = user_id);
-
--- Create a storage bucket for tutor resumes in Supabase Storage: "tutor-resumes"
--- Use the Supabase dashboard or the CLI to create the bucket, then grant
--- read access to your expected consumers if you want resumes to be publicly accessible.
-
--- =========================================================
--- After signing up once through the app, promote yourself:
---   insert into public.user_roles (user_id, role)
---   values ('<your-auth-uid>', 'admin') on conflict do nothing;
--- Get your uid from Supabase Dashboard → Authentication → Users
--- =========================================================
