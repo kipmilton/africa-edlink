@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useApp } from "@/lib/app-context";
-import { courses } from "@/lib/courses";
+import { formatPrice } from "@/lib/currency";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,7 +42,7 @@ function CourseImage({
 }
 
 function CoursesPage() {
-  const { t, lang } = useApp();
+  const { t, lang, courses, currency } = useApp();
   return (
     <div className="bg-background">
       {/* Header */}
@@ -106,12 +106,15 @@ function CoursesPage() {
                   {c.what[lang]}
                 </p>
 
+                <div className="mt-4 text-lg font-bold text-primary">
+                  {formatPrice(c.basePriceUSD, currency)}
+                </div>
                 <div className="mt-auto flex gap-3 pt-6">
-                  <Button className="flex-1 rounded-lg">
-                    {t("courses.enroll")}
+                  <Button asChild className="flex-1 rounded-lg">
+                    <Link to="/enroll/$id" params={{ id: c.id }}>{t("courses.enroll")}</Link>
                   </Button>
-                  <Button variant="outline" className="flex-1 rounded-lg">
-                    {t("courses.learn")}
+                  <Button asChild variant="outline" className="flex-1 rounded-lg">
+                    <Link to="/courses/$id" params={{ id: c.id }}>{t("courses.learn")}</Link>
                   </Button>
                 </div>
               </div>

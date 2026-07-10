@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { courses as seedCourses, type Course } from "@/lib/courses";
+import { detectCountry, type Currency } from "@/lib/currency";
 
 export type Lang = "en" | "fr";
 export type Role = "student" | "tutor" | "admin";
@@ -7,6 +8,63 @@ export type Role = "student" | "tutor" | "admin";
 export type LocalCourse = Course & {
   primaryCta?: string;
   secondaryCta?: string;
+  basePriceUSD: number;
+  cohortSize: number;
+  outline?: string[];
+};
+
+export type Enrollment = {
+  id: string;
+  courseId: string;
+  cohortId: string;
+  studentEmail: string;
+  fullName: string;
+  phone: string;
+  education: string;
+  heardFrom: string;
+  paymentOption: "full" | "partial";
+  createdAt: string;
+};
+
+export type Cohort = {
+  id: string;
+  courseId: string;
+  number: number;
+  studentIds: string[]; // enrollment ids
+  tutorEmail?: string;
+  completed: boolean;
+};
+
+export type ChatMessage = {
+  id: string;
+  cohortId: string;
+  authorEmail: string;
+  authorName: string;
+  authorRole: "student" | "tutor";
+  text: string;
+  createdAt: string;
+};
+
+export type PendingCertification = {
+  id: string;
+  cohortId: string;
+  courseId: string;
+  studentEnrollmentId: string;
+  studentName: string;
+  submittedByEmail: string;
+  submittedAt: string;
+};
+
+export type Certificate = {
+  id: string;
+  studentEnrollmentId: string;
+  studentEmail: string;
+  studentName: string;
+  courseId: string;
+  courseName: string;
+  cohortNumber: number;
+  fileDataUrl?: string;
+  issuedAt: string;
 };
 
 export type TutorApplication = {
@@ -34,12 +92,65 @@ type AppCtx = {
   t: (key: string) => string;
   courses: LocalCourse[];
   addCourse: (c: LocalCourse) => void;
+  updateCourse: (id: string, patch: Partial<LocalCourse>) => void;
+  enrollments: Enrollment[];
+  cohorts: Cohort[];
+  enroll: (input: Omit<Enrollment, "id" | "cohortId" | "createdAt">) => { enrollment: Enrollment; cohort: Cohort };
+  assignTutorToCohort: (cohortId: string, tutorEmail: string) => void;
+  markCohortComplete: (cohortId: string) => void;
+  chats: ChatMessage[];
+  sendChat: (m: Omit<ChatMessage, "id" | "createdAt">) => void;
+  pendingCertifications: PendingCertification[];
+  submitForCertification: (entries: Omit<PendingCertification, "id" | "submittedAt">[]) => void;
+  certificates: Certificate[];
+  issueCertificate: (pendingId: string, fileDataUrl?: string) => void;
+  country: string;
+  currency: Currency;
   tutorApplications: TutorApplication[];
   addTutorApplication: (a: Omit<TutorApplication, "id" | "status" | "assignedCohort" | "createdAt">) => void;
   updateTutorApplication: (id: string, updates: Partial<TutorApplication>) => void;
 };
 
 const Ctx = createContext<AppCtx | null>(null);
+
+// USD base prices for seed courses
+const SEED_PRICES: Record<string, number> = {
+  fullstack: 900,
+  ai: 1200,
+  ml: 1100,
+  analytics: 700,
+  ds: 1000,
+  cyber: 950,
+};
+
+function hydrateSeed(): LocalCourse[] {
+  return seedCourses.map((c) => ({
+    ...c,
+    basePriceUSD: SEED_PRICES[c.id] ?? 800,
+    cohortSize: 8,
+  }));
+}
+
+const LS = {
+  courses: "serenog.courses",
+  enrollments: "serenog.enrollments",
+  cohorts: "serenog.cohorts",
+  chats: "serenog.chats",
+  pending: "serenog.pendingCerts",
+  certs: "serenog.certs",
+};
+
+function loadLS<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+function saveLS<T>(key: string, val: T) {
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch { /* noop */ }
+}
 
 const dict: Record<string, { en: string; fr: string }> = {
   "nav.home": { en: "Home", fr: "Accueil" },
@@ -183,14 +294,99 @@ const dict: Record<string, { en: string; fr: string }> = {
 export function AppProvider({ children }: { children: ReactNode }) {
   const [lang, setLang] = useState<Lang>("en");
   const [role, setRole] = useState<Role>("student");
-  const [courses, setCourses] = useState<LocalCourse[]>(seedCourses);
+  const [courses, setCourses] = useState<LocalCourse[]>(() => loadLS(LS.courses, hydrateSeed()));
+  const [enrollments, setEnrollments] = useState<Enrollment[]>(() => loadLS<Enrollment[]>(LS.enrollments, []));
+  const [cohorts, setCohorts] = useState<Cohort[]>(() => loadLS<Cohort[]>(LS.cohorts, []));
+  const [chats, setChats] = useState<ChatMessage[]>(() => loadLS<ChatMessage[]>(LS.chats, []));
+  const [pendingCertifications, setPendingCertifications] = useState<PendingCertification[]>(() => loadLS<PendingCertification[]>(LS.pending, []));
+  const [certificates, setCertificates] = useState<Certificate[]>(() => loadLS<Certificate[]>(LS.certs, []));
+  const [country, setCountry] = useState<string>("US");
+  const [currency, setCurrency] = useState<Currency>("USD");
   const [tutorApplications, setTutorApplications] = useState<TutorApplication[]>([]);
 
   useEffect(() => {
     document.documentElement.lang = lang;
   }, [lang]);
 
+  useEffect(() => {
+    detectCountry().then(({ country, currency }) => { setCountry(country); setCurrency(currency); });
+  }, []);
+
+  useEffect(() => { saveLS(LS.courses, courses); }, [courses]);
+  useEffect(() => { saveLS(LS.enrollments, enrollments); }, [enrollments]);
+  useEffect(() => { saveLS(LS.cohorts, cohorts); }, [cohorts]);
+  useEffect(() => { saveLS(LS.chats, chats); }, [chats]);
+  useEffect(() => { saveLS(LS.pending, pendingCertifications); }, [pendingCertifications]);
+  useEffect(() => { saveLS(LS.certs, certificates); }, [certificates]);
+
   const addCourse = (c: LocalCourse) => setCourses((prev) => [c, ...prev]);
+  const updateCourse = (id: string, patch: Partial<LocalCourse>) =>
+    setCourses((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+
+  const enroll: AppCtx["enroll"] = (input) => {
+    const course = courses.find((c) => c.id === input.courseId);
+    const size = Math.min(10, Math.max(5, course?.cohortSize ?? 8));
+    const courseCohorts = cohorts.filter((c) => c.courseId === input.courseId && !c.completed);
+    let target = courseCohorts.find((c) => c.studentIds.length < size);
+    let newCohorts = cohorts;
+    if (!target) {
+      target = {
+        id: crypto.randomUUID(),
+        courseId: input.courseId,
+        number: courseCohorts.length + 1,
+        studentIds: [],
+        completed: false,
+      };
+      newCohorts = [...cohorts, target];
+    }
+    const enrollment: Enrollment = {
+      ...input,
+      id: crypto.randomUUID(),
+      cohortId: target.id,
+      createdAt: new Date().toISOString(),
+    };
+    const updatedCohort: Cohort = { ...target, studentIds: [...target.studentIds, enrollment.id] };
+    newCohorts = newCohorts.map((c) => (c.id === updatedCohort.id ? updatedCohort : c));
+    setCohorts(newCohorts);
+    setEnrollments((prev) => [enrollment, ...prev]);
+    return { enrollment, cohort: updatedCohort };
+  };
+
+  const assignTutorToCohort = (cohortId: string, tutorEmail: string) =>
+    setCohorts((prev) => prev.map((c) => (c.id === cohortId ? { ...c, tutorEmail } : c)));
+
+  const markCohortComplete = (cohortId: string) =>
+    setCohorts((prev) => prev.map((c) => (c.id === cohortId ? { ...c, completed: true } : c)));
+
+  const sendChat: AppCtx["sendChat"] = (m) =>
+    setChats((prev) => [...prev, { ...m, id: crypto.randomUUID(), createdAt: new Date().toISOString() }]);
+
+  const submitForCertification: AppCtx["submitForCertification"] = (entries) =>
+    setPendingCertifications((prev) => [
+      ...entries.map((e) => ({ ...e, id: crypto.randomUUID(), submittedAt: new Date().toISOString() })),
+      ...prev,
+    ]);
+
+  const issueCertificate: AppCtx["issueCertificate"] = (pendingId, fileDataUrl) => {
+    const p = pendingCertifications.find((x) => x.id === pendingId);
+    if (!p) return;
+    const course = courses.find((c) => c.id === p.courseId);
+    const cohort = cohorts.find((c) => c.id === p.cohortId);
+    const enrollment = enrollments.find((e) => e.id === p.studentEnrollmentId);
+    const cert: Certificate = {
+      id: crypto.randomUUID(),
+      studentEnrollmentId: p.studentEnrollmentId,
+      studentEmail: enrollment?.studentEmail ?? "",
+      studentName: p.studentName,
+      courseId: p.courseId,
+      courseName: course?.title.en ?? "Course",
+      cohortNumber: cohort?.number ?? 1,
+      fileDataUrl,
+      issuedAt: new Date().toISOString(),
+    };
+    setCertificates((prev) => [cert, ...prev]);
+    setPendingCertifications((prev) => prev.filter((x) => x.id !== pendingId));
+  };
 
   const addTutorApplication = (a: Omit<TutorApplication, "id" | "status" | "assignedCohort" | "createdAt">) => {
     const newApp: TutorApplication = {
@@ -225,6 +421,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
         t,
         courses,
         addCourse,
+        updateCourse,
+        enrollments,
+        cohorts,
+        enroll,
+        assignTutorToCohort,
+        markCohortComplete,
+        chats,
+        sendChat,
+        pendingCertifications,
+        submitForCertification,
+        certificates,
+        issueCertificate,
+        country,
+        currency,
         tutorApplications,
         addTutorApplication,
         updateTutorApplication,

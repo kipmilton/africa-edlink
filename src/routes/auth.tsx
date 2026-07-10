@@ -1,11 +1,11 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useApp } from "@/lib/app-context";
+import { signInMock, useAuth } from "@/lib/use-auth";
 
 export const Route = createFileRoute("/auth")({
   component: AuthPage,
@@ -14,6 +14,7 @@ export const Route = createFileRoute("/auth")({
 function AuthPage() {
   const navigate = useNavigate();
   const { t } = useApp();
+  const { user } = useAuth();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -21,33 +22,19 @@ function AuthPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/dashboard" });
-    });
-  }, [navigate]);
+    if (user) navigate({ to: "/dashboard" });
+  }, [user, navigate]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     try {
-      if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { full_name: fullName },
-            emailRedirectTo: window.location.origin,
-          },
-        });
-        if (error) throw error;
-        toast.success(t("auth.toast.accountCreated"));
-        setMode("signin");
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        toast.success(t("auth.toast.welcome"));
-        navigate({ to: "/dashboard" });
-      }
+      if (!email) throw new Error("Email is required");
+      // Placeholder — password is not validated in the demo build.
+      void password;
+      signInMock(email, fullName || undefined);
+      toast.success(t("auth.toast.welcome"));
+      navigate({ to: "/dashboard" });
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
@@ -80,7 +67,7 @@ function AuthPage() {
           </div>
           <div>
             <Label htmlFor="password">{t("auth.password")}</Label>
-            <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={6} required />
+            <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="anything (demo)" />
           </div>
           <Button type="submit" disabled={busy} className="w-full">
             {busy
@@ -90,6 +77,12 @@ function AuthPage() {
                 : t("auth.submit.signup")}
           </Button>
         </form>
+        <div className="mt-4 rounded-lg border border-dashed bg-muted/40 p-3 text-xs text-muted-foreground">
+          <p className="font-semibold text-foreground">Demo accounts</p>
+          <p>Admin: sophia1@gmail.com</p>
+          <p>Tutor: sophia2@gmail.com</p>
+          <p>Student: sophia3@gmail.com</p>
+        </div>
         <div className="mt-6 text-center text-sm text-muted-foreground">
           {mode === "signin" ? t("auth.switch.new") : t("auth.switch.existing")}{" "}
           <button
