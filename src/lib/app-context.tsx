@@ -115,6 +115,30 @@ const dict: Record<string, { en: string; fr: string }> = {
   "qa.q3": { en: "Who is this course for?", fr: "À qui s'adresse ce cours ?" },
   "qa.q4": { en: "Why study at our institution?", fr: "Pourquoi étudier chez nous ?" },
 
+  "reviews.title": { en: "What learners say", fr: "Ce que disent les apprenants" },
+  "reviews.subtitle": {
+    en: "A quick look at the experience students and professionals have after joining Serenog.",
+    fr: "Un aperçu de l'expérience vécue par les étudiants et professionnels après avoir rejoint Serenog.",
+  },
+  "reviews.signin": { en: "Sign in to leave a review", fr: "Connectez-vous pour laisser un avis" },
+  "reviews.formTitle": { en: "Leave a review", fr: "Laisser un avis" },
+  "reviews.formHint": {
+    en: "Share what stood out for you after your first session or course.",
+    fr: "Partagez ce qui vous a marqué après votre première session ou votre premier cours.",
+  },
+  "reviews.name": { en: "Your name", fr: "Votre nom" },
+  "reviews.comment": { en: "Your review", fr: "Votre avis" },
+  "reviews.submit": { en: "Submit review", fr: "Envoyer l'avis" },
+  "reviews.success": {
+    en: "Thanks for your review. It is now part of the community wall.",
+    fr: "Merci pour votre avis. Il fait maintenant partie du mur de la communauté.",
+  },
+  "reviews.empty": {
+    en: "Please write a short review before submitting.",
+    fr: "Veuillez écrire un avis court avant de l'envoyer.",
+  },
+  "reviews.anonymous": { en: "Anonymous learner", fr: "Apprenant anonyme" },
+
   "about.title": { en: "About Us", fr: "À Propos" },
   "about.desc": {
     en: "We are a pan-African EdTech institution training the next generation of builders across Lagos, Abidjan, Douala, Dakar, Accra and Nairobi — bilingual by design, project-based by conviction.",
