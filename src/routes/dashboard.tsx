@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { useApp, type LocalCourse, type Role, type Cohort, type Enrollment } from "@/lib/app-context";
+import { useApp, type LocalCourse, type Role, type Cohort } from "@/lib/app-context";
 import { useAuth } from "@/lib/use-auth";
 import { formatPrice } from "@/lib/currency";
 import { Card } from "@/components/ui/card";
@@ -660,6 +660,3 @@ function AdminGraduatePanel() {
     </div>
   );
 }
-
-// silence unused
-void Enrollment;
