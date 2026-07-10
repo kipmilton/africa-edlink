@@ -166,7 +166,7 @@ function Index() {
     }
 
     const fallbackName =
-      (user?.user_metadata as { full_name?: string } | undefined)?.full_name ||
+      user?.fullName ||
       user?.email?.split("@")[0] ||
       t("reviews.anonymous");
 
