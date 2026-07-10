@@ -329,15 +329,11 @@ function Index() {
                   </p>
 
                   <div className="mt-6 flex gap-3">
-                    <Button size="sm" className="flex-1 rounded-lg">
-                      {t("courses.enroll")}
+                    <Button asChild size="sm" className="flex-1 rounded-lg">
+                      <Link to="/enroll/$id" params={{ id: c.id }}>{t("courses.enroll")}</Link>
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="flex-1 rounded-lg"
-                    >
-                      {t("courses.learn")}
+                    <Button asChild size="sm" variant="outline" className="flex-1 rounded-lg">
+                      <Link to="/courses/$id" params={{ id: c.id }}>{t("courses.learn")}</Link>
                     </Button>
                   </div>
                 </div>
