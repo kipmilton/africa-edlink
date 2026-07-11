@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { courses as seedCourses, type Course } from "@/lib/courses";
-import { detectCountry, type Currency } from "@/lib/currency";
+import { detectCountry, isFrenchSpeaking, type Currency } from "@/lib/currency";
+import { supabase } from "@/integrations/supabase/client";
 
 export type Lang = "en" | "fr";
 export type Role = "student" | "tutor" | "admin";
@@ -292,7 +293,17 @@ const dict: Record<string, { en: string; fr: string }> = {
 };
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [lang, setLang] = useState<Lang>("en");
+  const [lang, setLangState] = useState<Lang>(() => {
+    try {
+      const saved = localStorage.getItem("serenog.lang");
+      if (saved === "en" || saved === "fr") return saved;
+    } catch { /* noop */ }
+    return "en";
+  });
+  const setLang = (l: Lang) => {
+    setLangState(l);
+    try { localStorage.setItem("serenog.lang", l); localStorage.setItem("serenog.lang.explicit", "1"); } catch { /* noop */ }
+  };
   const [role, setRole] = useState<Role>("student");
   const [courses, setCourses] = useState<LocalCourse[]>(() => loadLS(LS.courses, hydrateSeed()));
   const [enrollments, setEnrollments] = useState<Enrollment[]>(() => loadLS<Enrollment[]>(LS.enrollments, []));
@@ -300,8 +311,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [chats, setChats] = useState<ChatMessage[]>(() => loadLS<ChatMessage[]>(LS.chats, []));
   const [pendingCertifications, setPendingCertifications] = useState<PendingCertification[]>(() => loadLS<PendingCertification[]>(LS.pending, []));
   const [certificates, setCertificates] = useState<Certificate[]>(() => loadLS<Certificate[]>(LS.certs, []));
-  const [country, setCountry] = useState<string>("US");
-  const [currency, setCurrency] = useState<Currency>("USD");
+  const [country, setCountry] = useState<string>("KE");
+  const [currency, setCurrency] = useState<Currency>("KES");
   const [tutorApplications, setTutorApplications] = useState<TutorApplication[]>([]);
 
   useEffect(() => {
@@ -309,7 +320,55 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [lang]);
 
   useEffect(() => {
-    detectCountry().then(({ country, currency }) => { setCountry(country); setCurrency(currency); });
+    detectCountry().then(({ country, currency }) => {
+      setCountry(country);
+      setCurrency(currency);
+      // Auto-switch to French for francophone countries when the user has not
+      // explicitly picked a language yet.
+      try {
+        const explicit = localStorage.getItem("serenog.lang.explicit");
+        if (!explicit && isFrenchSpeaking(country)) {
+          setLangState("fr");
+          localStorage.setItem("serenog.lang", "fr");
+        }
+      } catch { /* noop */ }
+    });
+  }, []);
+
+  // Sync tutor applications from Supabase so admins see them cross-device.
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      const { data, error } = await supabase
+        .from("tutor_applications")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error || !mounted || !data) return;
+      setTutorApplications(
+        data.map((r: Record<string, unknown>) => ({
+          id: String(r.id),
+          fullName: String(r.full_name ?? ""),
+          email: String(r.email ?? ""),
+          phone: String(r.phone ?? ""),
+          country: String(r.country ?? ""),
+          specialization: String(r.specialization ?? ""),
+          bio: String(r.bio ?? ""),
+          experience: String(r.experience ?? ""),
+          resumeName: (r.resume_name as string) ?? undefined,
+          resumeSize: (r.resume_size as number) ?? undefined,
+          resumeUrl: (r.resume_url as string) ?? undefined,
+          status: (r.status as TutorApplication["status"]) ?? "pending",
+          assignedCohort: String(r.assigned_cohort ?? ""),
+          createdAt: String(r.created_at ?? new Date().toISOString()),
+        })),
+      );
+    };
+    load();
+    const channel = supabase
+      .channel("tutor_applications_changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "tutor_applications" }, () => load())
+      .subscribe();
+    return () => { mounted = false; supabase.removeChannel(channel); };
   }, []);
 
   useEffect(() => { saveLS(LS.courses, courses); }, [courses]);
