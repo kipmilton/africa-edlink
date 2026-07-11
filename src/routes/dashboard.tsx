@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useApp, type LocalCourse, type Role, type Cohort } from "@/lib/app-context";
 import { useAuth } from "@/lib/use-auth";
 import { formatPrice } from "@/lib/currency";
+import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
-  Users, GraduationCap, MessageSquare, BookOpen, Wallet, Plus, Award, Send, Upload, Share2, AlertTriangle, CheckCircle2,
+  Users, GraduationCap, MessageSquare, BookOpen, Wallet, Plus, Award, Send, Upload, Share2, AlertTriangle, CheckCircle2, Video, XCircle, UserCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 
