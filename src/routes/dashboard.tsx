@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useApp, type LocalCourse, type Role, type Cohort } from "@/lib/app-context";
 import { useAuth } from "@/lib/use-auth";
 import { formatPrice } from "@/lib/currency";
+import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
-  Users, GraduationCap, MessageSquare, BookOpen, Wallet, Plus, Award, Send, Upload, Share2, AlertTriangle, CheckCircle2,
+  Users, GraduationCap, MessageSquare, BookOpen, Wallet, Plus, Award, Send, Upload, Share2, AlertTriangle, CheckCircle2, Video, XCircle, UserCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -58,6 +59,13 @@ function DashboardPage() {
   const canSwitch = authRole === "admin";
   const displayName = user.fullName || user.email.split("@")[0];
 
+  // Pending tutor applications: a student who applied waits here until an admin decides.
+  const { tutorApplications } = useApp();
+  const myPending = tutorApplications.find(
+    (a) => a.email.toLowerCase() === user.email.toLowerCase() && a.status === "pending",
+  );
+  const showPending = authRole !== "admin" && authRole !== "tutor" && !!myPending;
+
   return (
     <div className="bg-background">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -90,9 +98,22 @@ function DashboardPage() {
         </div>
 
         <div className="mt-8">
-          {role === "student" && <StudentDash />}
-          {role === "tutor" && <TutorDash />}
-          {role === "admin" && <AdminDash />}
+          {showPending ? (
+            <Card className="p-10 text-center">
+              <AlertTriangle className="mx-auto h-10 w-10 text-amber-500" />
+              <h2 className="mt-4 text-xl font-bold">Your tutor application is under review</h2>
+              <p className="mt-2 max-w-lg mx-auto text-sm text-muted-foreground">
+                Thanks for applying, {displayName}. Our team is reviewing your application submitted on{" "}
+                {new Date(myPending!.createdAt).toLocaleDateString()}. We'll email you when a decision is made — usually within 48 hours.
+              </p>
+            </Card>
+          ) : (
+            <>
+              {role === "student" && <StudentDash />}
+              {role === "tutor" && <TutorDash />}
+              {role === "admin" && <AdminDash />}
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -199,6 +220,7 @@ function TutorDash() {
       <TabsList className="flex w-full flex-wrap justify-start gap-1 bg-card p-1 sm:w-auto">
         <TabsTrigger value="cohorts">My Cohorts</TabsTrigger>
         <TabsTrigger value="chat">Ask &amp; Answer</TabsTrigger>
+        <TabsTrigger value="recordings">Class Recordings</TabsTrigger>
       </TabsList>
 
       <TabsContent value="cohorts" className="mt-6 grid gap-4 md:grid-cols-2">
@@ -274,6 +296,10 @@ function TutorDash() {
         ) : (
           <AskAnswer cohorts={myCohorts} chats={chats} onSend={sendChat} authorRole="tutor" />
         )}
+      </TabsContent>
+
+      <TabsContent value="recordings" className="mt-6">
+        <TutorRecordings cohorts={myCohorts} />
       </TabsContent>
     </Tabs>
   );
@@ -428,6 +454,7 @@ function AdminDash() {
         <TabsTrigger value="overview">Global Overview</TabsTrigger>
         <TabsTrigger value="courses">Courses</TabsTrigger>
         <TabsTrigger value="cohorts">Cohorts</TabsTrigger>
+        <TabsTrigger value="tutors">Tutor Applications</TabsTrigger>
         <TabsTrigger value="graduate">Graduate School</TabsTrigger>
       </TabsList>
 
@@ -451,6 +478,7 @@ function AdminDash() {
 
       <TabsContent value="courses" className="mt-6"><AdminCoursesPanel /></TabsContent>
       <TabsContent value="cohorts" className="mt-6"><AdminCohortsPanel /></TabsContent>
+      <TabsContent value="tutors" className="mt-6"><AdminTutorApplicationsPanel /></TabsContent>
       <TabsContent value="graduate" className="mt-6"><AdminGraduatePanel /></TabsContent>
     </Tabs>
   );
@@ -656,6 +684,208 @@ function AdminGraduatePanel() {
             </TableBody>
           </Table>
         </Card>
+      )}
+    </div>
+  );
+}
+
+/* ================== TUTOR RECORDINGS ================== */
+type Recording = { id: string; cohortId: string; title: string; url: string; createdAt: string };
+
+function TutorRecordings({ cohorts }: { cohorts: Cohort[] }) {
+  const { courses } = useApp();
+  const [recordings, setRecordings] = useState<Recording[]>(() => {
+    try { return JSON.parse(localStorage.getItem("serenog.recordings") ?? "[]"); } catch { return []; }
+  });
+  const [activeCohortId, setActiveCohortId] = useState(cohorts[0]?.id ?? "");
+  const [title, setTitle] = useState("");
+  const [url, setUrl] = useState("");
+
+  useEffect(() => {
+    localStorage.setItem("serenog.recordings", JSON.stringify(recordings));
+  }, [recordings]);
+
+  useEffect(() => {
+    if (!cohorts.find((c) => c.id === activeCohortId)) setActiveCohortId(cohorts[0]?.id ?? "");
+  }, [cohorts, activeCohortId]);
+
+  if (cohorts.length === 0) {
+    return (
+      <Card className="p-10 text-center">
+        <Video className="mx-auto h-10 w-10 text-muted-foreground" />
+        <h3 className="mt-4 text-lg font-bold">No cohort assigned yet</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Once the admin assigns you to a cohort, you'll be able to upload class recordings here for your students.
+        </p>
+      </Card>
+    );
+  }
+
+  const activeCohort = cohorts.find((c) => c.id === activeCohortId);
+  const activeCourse = courses.find((c) => c.id === activeCohort?.courseId);
+  const cohortRecordings = recordings.filter((r) => r.cohortId === activeCohortId);
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!title.trim() || !url.trim() || !activeCohort) return;
+    setRecordings((prev) => [
+      { id: crypto.randomUUID(), cohortId: activeCohort.id, title: title.trim(), url: url.trim(), createdAt: new Date().toISOString() },
+      ...prev,
+    ]);
+    setTitle(""); setUrl("");
+    toast.success("Recording added");
+  };
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-[240px_1fr]">
+      <Card className="p-3">
+        <p className="mb-2 px-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">Cohorts</p>
+        <div className="space-y-1">
+          {cohorts.map((c) => {
+            const course = courses.find((x) => x.id === c.courseId);
+            return (
+              <button key={c.id} onClick={() => setActiveCohortId(c.id)}
+                className={`w-full rounded-md px-3 py-2 text-left text-sm ${activeCohortId === c.id ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}>
+                <div className="font-medium truncate">{course?.title.en ?? "Course"}</div>
+                <div className="text-xs opacity-70">Cohort {c.number}</div>
+              </button>
+            );
+          })}
+        </div>
+      </Card>
+      <Card className="p-5">
+        <h3 className="text-lg font-bold">{activeCourse?.title.en ?? "Cohort"} · Cohort {activeCohort?.number}</h3>
+        <p className="text-xs text-muted-foreground">Post a recording link (Zoom, Google Meet, YouTube unlisted, etc.).</p>
+        <form onSubmit={submit} className="mt-4 grid gap-3 sm:grid-cols-[1fr_2fr_auto]">
+          <Input placeholder="Session title" value={title} onChange={(e) => setTitle(e.target.value)} required />
+          <Input placeholder="Recording URL" type="url" value={url} onChange={(e) => setUrl(e.target.value)} required />
+          <Button type="submit"><Video className="mr-2 h-4 w-4" /> Add</Button>
+        </form>
+        <div className="mt-6 space-y-2">
+          {cohortRecordings.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No recordings yet for this cohort.</p>
+          ) : cohortRecordings.map((r) => (
+            <div key={r.id} className="flex items-center justify-between rounded-lg border p-3">
+              <div>
+                <p className="font-medium">{r.title}</p>
+                <p className="text-xs text-muted-foreground">{new Date(r.createdAt).toLocaleString()}</p>
+              </div>
+              <Button asChild size="sm" variant="outline"><a href={r.url} target="_blank" rel="noreferrer">Open</a></Button>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+/* ================== ADMIN TUTOR APPLICATIONS ================== */
+function AdminTutorApplicationsPanel() {
+  const { tutorApplications, updateTutorApplication } = useApp();
+  const pending = tutorApplications.filter((a) => a.status === "pending");
+  const decided = tutorApplications.filter((a) => a.status !== "pending");
+
+  const approve = async (id: string, userId: string | null | undefined, fullName: string) => {
+    const { error: updateError } = await supabase
+      .from("tutor_applications")
+      .update({ status: "approved" })
+      .eq("id", id);
+    if (updateError) return toast.error(updateError.message);
+    if (userId) {
+      const { error: roleError } = await supabase
+        .from("user_roles")
+        .insert({ user_id: userId, role: "tutor" });
+      if (roleError && !roleError.message.includes("duplicate")) {
+        return toast.error(roleError.message);
+      }
+    }
+    updateTutorApplication(id, { status: "approved" });
+    toast.success(`Approved ${fullName} as tutor`);
+  };
+
+  const reject = async (id: string, fullName: string) => {
+    const { error } = await supabase
+      .from("tutor_applications")
+      .update({ status: "rejected" })
+      .eq("id", id);
+    if (error) return toast.error(error.message);
+    updateTutorApplication(id, { status: "rejected" });
+    toast.success(`Rejected ${fullName}`);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-bold">Pending applications</h3>
+        <p className="text-sm text-muted-foreground">Applicants stay in a "pending" state on their dashboard until you decide.</p>
+      </div>
+
+      {pending.length === 0 ? (
+        <Card className="p-8 text-center text-sm text-muted-foreground">No pending tutor applications.</Card>
+      ) : (
+        <div className="grid gap-3">
+          {pending.map((a) => (
+            <Card key={a.id} className="p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <InitialAvatar name={a.fullName} className="h-9 w-9" />
+                    <div>
+                      <p className="font-bold">{a.fullName}</p>
+                      <p className="text-xs text-muted-foreground">{a.email} · {a.country || "—"}</p>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-sm"><span className="font-semibold">Specialization:</span> {a.specialization}</p>
+                  {a.experience && <p className="mt-1 text-sm"><span className="font-semibold">Experience:</span> {a.experience}</p>}
+                  {a.bio && <p className="mt-2 text-sm text-muted-foreground line-clamp-3">{a.bio}</p>}
+                  {a.resumeUrl && (
+                    <a href={a.resumeUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                      <Upload className="h-3 w-3" /> View resume {a.resumeName ? `(${a.resumeName})` : ""}
+                    </a>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => reject(a.id, a.fullName)}>
+                    <XCircle className="mr-2 h-4 w-4" /> Reject
+                  </Button>
+                  <Button size="sm" onClick={() => approve(a.id, null, a.fullName)}>
+                    <UserCheck className="mr-2 h-4 w-4" /> Approve as Tutor
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {decided.length > 0 && (
+        <div>
+          <h3 className="mt-8 text-lg font-bold">Decided</h3>
+          <Card className="mt-2 overflow-hidden p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Applicant</TableHead>
+                  <TableHead>Specialization</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Decided</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {decided.map((a) => (
+                  <TableRow key={a.id}>
+                    <TableCell className="font-medium">{a.fullName}<div className="text-xs text-muted-foreground">{a.email}</div></TableCell>
+                    <TableCell>{a.specialization}</TableCell>
+                    <TableCell>
+                      <Badge variant={a.status === "approved" ? "default" : "secondary"} className="capitalize">{a.status}</Badge>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{new Date(a.createdAt).toLocaleDateString()}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+        </div>
       )}
     </div>
   );

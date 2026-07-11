@@ -28,8 +28,19 @@ const COUNTRY_CURRENCY: Record<string, Currency> = {
 };
 
 export function currencyForCountry(country: string | undefined | null): Currency {
-  if (!country) return "USD";
-  return COUNTRY_CURRENCY[country.toUpperCase()] ?? "USD";
+  if (!country) return "KES";
+  return COUNTRY_CURRENCY[country.toUpperCase()] ?? "KES";
+}
+
+// Francophone countries — auto-select French as UI language.
+const FR_COUNTRIES = new Set([
+  "FR","CI","SN","BJ","TG","BF","ML","NE","GW","CM","GA","CG","CF","TD","GQ",
+  "DJ","KM","MG","BI","RW","CD","LU","BE","MC","HT",
+]);
+
+export function isFrenchSpeaking(country: string | undefined | null): boolean {
+  if (!country) return false;
+  return FR_COUNTRIES.has(country.toUpperCase());
 }
 
 export function formatPrice(baseUSD: number, currency: Currency): string {

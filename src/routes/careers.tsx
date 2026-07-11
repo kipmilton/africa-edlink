@@ -138,6 +138,27 @@ function CareersPage() {
       resumeSize = resume.size;
     }
 
+    // Persist to Supabase so admins can review from any device.
+    const { data: userData } = await supabase.auth.getUser();
+    const { error: insertError } = await supabase.from("tutor_applications").insert({
+      user_id: userData.user?.id ?? null,
+      full_name: fullName,
+      email,
+      phone,
+      country,
+      specialization,
+      bio,
+      experience,
+      resume_name: resumeName,
+      resume_size: resumeSize,
+      resume_url: resumeUrl,
+      status: "pending",
+    });
+    if (insertError) {
+      toast.error(insertError.message);
+      return;
+    }
+    // Also keep local optimistic copy.
     addTutorApplication({
       fullName,
       email,

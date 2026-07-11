@@ -1,7 +1,8 @@
 import { createFileRoute, Link, useParams, useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { useApp } from "@/lib/app-context";
-import { useAuth, signInMock } from "@/lib/use-auth";
+import { useAuth } from "@/lib/use-auth";
+import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/lib/currency";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,14 +53,29 @@ function EnrollPage() {
     return last.number;
   })();
 
-  const handleSignIn = (e: FormEvent) => {
+  const handleSignIn = async (e: FormEvent) => {
     e.preventDefault();
-    if (!authEmail) return toast.error("Enter your email");
-    signInMock(authEmail, authName || undefined);
+    if (!authEmail || !authPass) return toast.error("Enter your email and password");
+    const { error } = await supabase.auth.signInWithPassword({ email: authEmail, password: authPass });
+    if (error) return toast.error(error.message);
     setEmail(authEmail);
     setFullName(authName || authEmail.split("@")[0]);
-    void authPass;
     toast.success("Signed in");
+  };
+
+  const handleSignUp = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!authEmail || !authPass) return toast.error("Enter your email and password");
+    const { error } = await supabase.auth.signUp({
+      email: authEmail,
+      password: authPass,
+      options: {
+        emailRedirectTo: `${window.location.origin}/dashboard`,
+        data: { full_name: authName },
+      },
+    });
+    if (error) return toast.error(error.message);
+    toast.success("Account created — check your email to confirm, then sign in.");
   };
 
   const submit = (e: FormEvent) => {
@@ -92,15 +108,15 @@ function EnrollPage() {
               <TabsContent value="signin" className="mt-4">
                 <form onSubmit={handleSignIn} className="grid gap-3">
                   <div><Label>Email</Label><Input type="email" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} required /></div>
-                  <div><Label>Password</Label><Input type="password" value={authPass} onChange={(e) => setAuthPass(e.target.value)} placeholder="anything (demo)" /></div>
+                  <div><Label>Password</Label><Input type="password" value={authPass} onChange={(e) => setAuthPass(e.target.value)} required /></div>
                   <Button type="submit">Sign In</Button>
                 </form>
               </TabsContent>
               <TabsContent value="signup" className="mt-4">
-                <form onSubmit={handleSignIn} className="grid gap-3">
+                <form onSubmit={handleSignUp} className="grid gap-3">
                   <div><Label>Full Name</Label><Input value={authName} onChange={(e) => setAuthName(e.target.value)} required /></div>
                   <div><Label>Email</Label><Input type="email" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} required /></div>
-                  <div><Label>Password</Label><Input type="password" value={authPass} onChange={(e) => setAuthPass(e.target.value)} placeholder="anything (demo)" /></div>
+                  <div><Label>Password</Label><Input type="password" value={authPass} onChange={(e) => setAuthPass(e.target.value)} required /></div>
                   <Button type="submit">Create Account</Button>
                 </form>
               </TabsContent>
