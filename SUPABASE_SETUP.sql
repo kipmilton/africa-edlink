@@ -119,3 +119,23 @@ create policy "Admins manage tutor applications" on public.tutor_applications
 create policy "Users insert applications" on public.tutor_applications
   for insert to authenticated
   with check (auth.uid() = user_id);
+
+-- 7. Role bootstrap for the three test accounts (run once, after users exist)
+insert into public.user_roles (user_id, role)
+select id, 'admin'::public.app_role from auth.users where lower(email) = 'sophia1@gmail.com'
+on conflict (user_id, role) do nothing;
+
+insert into public.user_roles (user_id, role)
+select id, 'tutor'::public.app_role from auth.users where lower(email) = 'sophia2@gmail.com'
+on conflict (user_id, role) do nothing;
+
+-- sophia3 keeps the default 'student' role assigned by the on-signup trigger.
+
+-- 8. Allow admins to also insert user_roles from the client (approve tutor flow)
+drop policy if exists "Admins insert roles" on public.user_roles;
+create policy "Admins insert roles" on public.user_roles
+  for insert to authenticated
+  with check (public.has_role(auth.uid(), 'admin'));
+
+-- 9. Enable realtime for tutor_applications so admin dashboards update live.
+alter publication supabase_realtime add table public.tutor_applications;
