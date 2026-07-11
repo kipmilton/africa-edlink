@@ -108,7 +108,7 @@ function EnrollPage() {
               <TabsContent value="signin" className="mt-4">
                 <form onSubmit={handleSignIn} className="grid gap-3">
                   <div><Label>Email</Label><Input type="email" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} required /></div>
-                  <div><Label>Password</Label><Input type="password" value={authPass} onChange={(e) => setAuthPass(e.target.value)} placeholder="anything (demo)" /></div>
+                  <div><Label>Password</Label><Input type="password" value={authPass} onChange={(e) => setAuthPass(e.target.value)} required /></div>
                   <Button type="submit">Sign In</Button>
                 </form>
               </TabsContent>
