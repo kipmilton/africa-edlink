@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useApp } from "@/lib/app-context";
-import { signInMock, useAuth } from "@/lib/use-auth";
+import { useAuth } from "@/lib/use-auth";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/auth")({
   component: AuthPage,
@@ -29,12 +30,25 @@ function AuthPage() {
     e.preventDefault();
     setBusy(true);
     try {
-      if (!email) throw new Error("Email is required");
-      // Placeholder — password is not validated in the demo build.
-      void password;
-      signInMock(email, fullName || undefined);
-      toast.success(t("auth.toast.welcome"));
-      navigate({ to: "/dashboard" });
+      if (!email || !password) throw new Error("Email and password are required");
+      if (mode === "signin") {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        toast.success(t("auth.toast.welcome"));
+        navigate({ to: "/dashboard" });
+      } else {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/dashboard`,
+            data: { full_name: fullName },
+          },
+        });
+        if (error) throw error;
+        toast.success(t("auth.toast.accountCreated"));
+        setMode("signin");
+      }
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
@@ -67,7 +81,7 @@ function AuthPage() {
           </div>
           <div>
             <Label htmlFor="password">{t("auth.password")}</Label>
-            <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="anything (demo)" />
+            <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
           </div>
           <Button type="submit" disabled={busy} className="w-full">
             {busy
@@ -77,12 +91,6 @@ function AuthPage() {
                 : t("auth.submit.signup")}
           </Button>
         </form>
-        <div className="mt-4 rounded-lg border border-dashed bg-muted/40 p-3 text-xs text-muted-foreground">
-          <p className="font-semibold text-foreground">Demo accounts</p>
-          <p>Admin: sophia1@gmail.com</p>
-          <p>Tutor: sophia2@gmail.com</p>
-          <p>Student: sophia3@gmail.com</p>
-        </div>
         <div className="mt-6 text-center text-sm text-muted-foreground">
           {mode === "signin" ? t("auth.switch.new") : t("auth.switch.existing")}{" "}
           <button
