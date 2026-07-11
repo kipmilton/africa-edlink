@@ -59,6 +59,13 @@ function DashboardPage() {
   const canSwitch = authRole === "admin";
   const displayName = user.fullName || user.email.split("@")[0];
 
+  // Pending tutor applications: a student who applied waits here until an admin decides.
+  const { tutorApplications } = useApp();
+  const myPending = tutorApplications.find(
+    (a) => a.email.toLowerCase() === user.email.toLowerCase() && a.status === "pending",
+  );
+  const showPending = authRole !== "admin" && authRole !== "tutor" && !!myPending;
+
   return (
     <div className="bg-background">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -91,9 +98,22 @@ function DashboardPage() {
         </div>
 
         <div className="mt-8">
-          {role === "student" && <StudentDash />}
-          {role === "tutor" && <TutorDash />}
-          {role === "admin" && <AdminDash />}
+          {showPending ? (
+            <Card className="p-10 text-center">
+              <AlertTriangle className="mx-auto h-10 w-10 text-amber-500" />
+              <h2 className="mt-4 text-xl font-bold">Your tutor application is under review</h2>
+              <p className="mt-2 max-w-lg mx-auto text-sm text-muted-foreground">
+                Thanks for applying, {displayName}. Our team is reviewing your application submitted on{" "}
+                {new Date(myPending!.createdAt).toLocaleDateString()}. We'll email you when a decision is made — usually within 48 hours.
+              </p>
+            </Card>
+          ) : (
+            <>
+              {role === "student" && <StudentDash />}
+              {role === "tutor" && <TutorDash />}
+              {role === "admin" && <AdminDash />}
+            </>
+          )}
         </div>
       </div>
     </div>
