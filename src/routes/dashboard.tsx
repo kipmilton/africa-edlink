@@ -200,6 +200,7 @@ function TutorDash() {
       <TabsList className="flex w-full flex-wrap justify-start gap-1 bg-card p-1 sm:w-auto">
         <TabsTrigger value="cohorts">My Cohorts</TabsTrigger>
         <TabsTrigger value="chat">Ask &amp; Answer</TabsTrigger>
+        <TabsTrigger value="recordings">Class Recordings</TabsTrigger>
       </TabsList>
 
       <TabsContent value="cohorts" className="mt-6 grid gap-4 md:grid-cols-2">
@@ -275,6 +276,10 @@ function TutorDash() {
         ) : (
           <AskAnswer cohorts={myCohorts} chats={chats} onSend={sendChat} authorRole="tutor" />
         )}
+      </TabsContent>
+
+      <TabsContent value="recordings" className="mt-6">
+        <TutorRecordings cohorts={myCohorts} />
       </TabsContent>
     </Tabs>
   );
