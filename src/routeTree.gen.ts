@@ -20,6 +20,7 @@ import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as VerifyIdRouteImport } from './routes/verify.$id'
 import { Route as EnrollIdRouteImport } from './routes/enroll.$id'
+import { Route as CoursesSlugRouteImport } from './routes/courses/$slug'
 import { Route as CoursesIdRouteImport } from './routes/courses.$id'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -77,6 +78,11 @@ const EnrollIdRoute = EnrollIdRouteImport.update({
   path: '/enroll/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CoursesSlugRoute = CoursesSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => CoursesRoute,
+} as any)
 const CoursesIdRoute = CoursesIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -94,6 +100,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/courses/$id': typeof CoursesIdRoute
+  '/courses/$slug': typeof CoursesSlugRoute
   '/enroll/$id': typeof EnrollIdRoute
   '/verify/$id': typeof VerifyIdRoute
 }
@@ -108,6 +115,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/courses/$id': typeof CoursesIdRoute
+  '/courses/$slug': typeof CoursesSlugRoute
   '/enroll/$id': typeof EnrollIdRoute
   '/verify/$id': typeof VerifyIdRoute
 }
@@ -123,6 +131,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/courses/$id': typeof CoursesIdRoute
+  '/courses/$slug': typeof CoursesSlugRoute
   '/enroll/$id': typeof EnrollIdRoute
   '/verify/$id': typeof VerifyIdRoute
 }
@@ -139,6 +148,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/sitemap.xml'
     | '/courses/$id'
+    | '/courses/$slug'
     | '/enroll/$id'
     | '/verify/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -153,6 +163,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/sitemap.xml'
     | '/courses/$id'
+    | '/courses/$slug'
     | '/enroll/$id'
     | '/verify/$id'
   id:
@@ -167,6 +178,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/sitemap.xml'
     | '/courses/$id'
+    | '/courses/$slug'
     | '/enroll/$id'
     | '/verify/$id'
   fileRoutesById: FileRoutesById
@@ -264,6 +276,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EnrollIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/courses/$slug': {
+      id: '/courses/$slug'
+      path: '/$slug'
+      fullPath: '/courses/$slug'
+      preLoaderRoute: typeof CoursesSlugRouteImport
+      parentRoute: typeof CoursesRoute
+    }
     '/courses/$id': {
       id: '/courses/$id'
       path: '/$id'
@@ -276,10 +295,12 @@ declare module '@tanstack/react-router' {
 
 interface CoursesRouteChildren {
   CoursesIdRoute: typeof CoursesIdRoute
+  CoursesSlugRoute: typeof CoursesSlugRoute
 }
 
 const CoursesRouteChildren: CoursesRouteChildren = {
   CoursesIdRoute: CoursesIdRoute,
+  CoursesSlugRoute: CoursesSlugRoute,
 }
 
 const CoursesRouteWithChildren =
@@ -301,3 +322,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

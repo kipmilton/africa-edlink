@@ -452,6 +452,7 @@ function AdminDash() {
     <Tabs defaultValue="overview">
       <TabsList className="flex w-full flex-wrap justify-start gap-1 bg-card p-1 sm:w-auto">
         <TabsTrigger value="overview">Global Overview</TabsTrigger>
+        <TabsTrigger value="enrollments">Enrollments</TabsTrigger>
         <TabsTrigger value="courses">Courses</TabsTrigger>
         <TabsTrigger value="cohorts">Cohorts</TabsTrigger>
         <TabsTrigger value="tutors">Tutor Applications</TabsTrigger>
@@ -476,11 +477,57 @@ function AdminDash() {
         })}
       </TabsContent>
 
+      <TabsContent value="enrollments" className="mt-6"><AdminEnrollmentsPanel /></TabsContent>
       <TabsContent value="courses" className="mt-6"><AdminCoursesPanel /></TabsContent>
       <TabsContent value="cohorts" className="mt-6"><AdminCohortsPanel /></TabsContent>
       <TabsContent value="tutors" className="mt-6"><AdminTutorApplicationsPanel /></TabsContent>
       <TabsContent value="graduate" className="mt-6"><AdminGraduatePanel /></TabsContent>
     </Tabs>
+  );
+}
+
+function AdminEnrollmentsPanel() {
+  const { enrollments, courses } = useApp();
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-bold">Enrollments</h3>
+          <p className="text-sm text-muted-foreground">Track each learner’s selected country, language and payment provider.</p>
+        </div>
+      </div>
+      <Card className="overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Student</TableHead>
+              <TableHead>Course</TableHead>
+              <TableHead>Country</TableHead>
+              <TableHead>Language</TableHead>
+              <TableHead>Payment Provider</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {enrollments.map((entry) => {
+              const course = courses.find((c) => c.id === entry.courseId);
+              const providerLabel = entry.paymentProvider === "paystack" ? "Paystack" : entry.paymentProvider === "flutterwave" ? "Flutterwave" : entry.paymentProvider === "cinetpay" ? "CinetPay" : "—";
+              return (
+                <TableRow key={entry.id}>
+                  <TableCell>
+                    <div className="font-medium">{entry.fullName}</div>
+                    <div className="text-xs text-muted-foreground">{entry.studentEmail}</div>
+                  </TableCell>
+                  <TableCell>{course?.title.en ?? "Course"}</TableCell>
+                  <TableCell>{entry.country || "—"}</TableCell>
+                  <TableCell>{entry.language === "fr" ? "French" : entry.language === "en" ? "English" : "—"}</TableCell>
+                  <TableCell>{providerLabel}</TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </Card>
+    </div>
   );
 }
 

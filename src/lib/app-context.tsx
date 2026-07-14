@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { courses as seedCourses, type Course } from "@/lib/courses";
-import { detectCountry, isFrenchSpeaking, type Currency } from "@/lib/currency";
+import { detectCountry, getBrowserLanguage, type Currency, type PaymentProvider } from "@/lib/currency";
 import { supabase } from "@/integrations/supabase/client";
 
 export type Lang = "en" | "fr";
@@ -24,6 +24,9 @@ export type Enrollment = {
   education: string;
   heardFrom: string;
   paymentOption: "full" | "partial";
+  country?: string;
+  language?: Lang;
+  paymentProvider?: PaymentProvider;
   createdAt: string;
 };
 
@@ -87,7 +90,7 @@ export type TutorApplication = {
 
 type AppCtx = {
   lang: Lang;
-  setLang: (l: Lang) => void;
+  setLang: (l: Lang, options?: { persist?: boolean }) => void;
   role: Role;
   setRole: (r: Role) => void;
   t: (key: string) => string;
@@ -295,14 +298,24 @@ const dict: Record<string, { en: string; fr: string }> = {
 export function AppProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>(() => {
     try {
-      const saved = localStorage.getItem("serenog.lang");
-      if (saved === "en" || saved === "fr") return saved;
+      const explicit = localStorage.getItem("serenog.lang.explicit");
+      if (explicit === "1") {
+        const saved = localStorage.getItem("serenog.lang");
+        if (saved === "en" || saved === "fr") return saved;
+      }
     } catch { /* noop */ }
-    return "en";
+    return getBrowserLanguage();
   });
-  const setLang = (l: Lang) => {
+  const setLang = (l: Lang, options?: { persist?: boolean }) => {
     setLangState(l);
-    try { localStorage.setItem("serenog.lang", l); localStorage.setItem("serenog.lang.explicit", "1"); } catch { /* noop */ }
+    try {
+      localStorage.setItem("serenog.lang", l);
+      if (options?.persist !== false) {
+        localStorage.setItem("serenog.lang.explicit", "1");
+      } else {
+        localStorage.removeItem("serenog.lang.explicit");
+      }
+    } catch { /* noop */ }
   };
   const [role, setRole] = useState<Role>("student");
   const [courses, setCourses] = useState<LocalCourse[]>(() => loadLS(LS.courses, hydrateSeed()));
@@ -320,16 +333,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [lang]);
 
   useEffect(() => {
-    detectCountry().then(({ country, currency }) => {
+    detectCountry().then(({ country, currency, profile }) => {
       setCountry(country);
       setCurrency(currency);
-      // Auto-switch to French for francophone countries when the user has not
-      // explicitly picked a language yet.
       try {
         const explicit = localStorage.getItem("serenog.lang.explicit");
-        if (!explicit && isFrenchSpeaking(country)) {
-          setLangState("fr");
-          localStorage.setItem("serenog.lang", "fr");
+        if (!explicit) {
+          const detectedLang = profile?.language ?? getBrowserLanguage();
+          setLangState(detectedLang);
+          localStorage.setItem("serenog.lang", detectedLang);
+          localStorage.removeItem("serenog.lang.explicit");
         }
       } catch { /* noop */ }
     });

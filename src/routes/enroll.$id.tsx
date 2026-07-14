@@ -1,9 +1,9 @@
 import { createFileRoute, Link, useParams, useNavigate } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useApp } from "@/lib/app-context";
 import { useAuth } from "@/lib/use-auth";
 import { supabase } from "@/integrations/supabase/client";
-import { formatPrice } from "@/lib/currency";
+import { COUNTRY_OPTIONS, formatPrice, type PaymentProvider } from "@/lib/currency";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,7 +20,7 @@ export const Route = createFileRoute("/enroll/$id")({
 
 function EnrollPage() {
   const { id } = useParams({ from: "/enroll/$id" });
-  const { courses, currency, enroll, cohorts } = useApp();
+  const { courses, currency, enroll, cohorts, setLang, lang, country: detectedCountry } = useApp();
   const { user } = useAuth();
   const navigate = useNavigate();
   const course = courses.find((c) => c.id === id);
@@ -34,8 +34,19 @@ function EnrollPage() {
   const [phone, setPhone] = useState("");
   const [education, setEducation] = useState("Bachelor's Degree");
   const [heard, setHeard] = useState("Google Search");
+  const [country, setCountry] = useState(detectedCountry || "");
   const [payOption, setPayOption] = useState<"full" | "partial">("full");
   const [showPaid, setShowPaid] = useState(false);
+  const selectedCountry = useMemo(() => COUNTRY_OPTIONS.find((item) => item.name === country || item.code === country), [country]);
+  const selectedLanguage = selectedCountry?.language ?? lang;
+  const selectedCurrency = selectedCountry?.currency ?? currency;
+  const selectedPaymentProvider = (selectedCountry?.paymentProvider ?? "flutterwave") as PaymentProvider;
+
+  useEffect(() => {
+    if (selectedCountry && selectedLanguage !== lang) {
+      setLang(selectedLanguage, { persist: false });
+    }
+  }, [selectedCountry, selectedLanguage, lang, setLang]);
 
   if (!course) {
     return (
@@ -89,6 +100,9 @@ function EnrollPage() {
       education,
       heardFrom: heard,
       paymentOption: payOption,
+      country: selectedCountry?.name ?? country,
+      language: selectedCountry?.language ?? lang,
+      paymentProvider: selectedCountry?.paymentProvider ?? selectedPaymentProvider,
     });
     setShowPaid(true);
   };
@@ -139,6 +153,17 @@ function EnrollPage() {
             <fieldset className="grid gap-3">
               <legend className="text-sm font-bold uppercase tracking-wide text-muted-foreground">Education &amp; Experience</legend>
               <div>
+                <Label>Country</Label>
+                <Select value={country || detectedCountry} onValueChange={setCountry}>
+                  <SelectTrigger><SelectValue placeholder="Select your country" /></SelectTrigger>
+                  <SelectContent>
+                    {COUNTRY_OPTIONS.map((option) => (
+                      <SelectItem key={option.code} value={option.name}>{option.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <Label>Education Level</Label>
                 <Select value={education} onValueChange={setEducation}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -164,13 +189,22 @@ function EnrollPage() {
 
             <fieldset className="grid gap-3">
               <legend className="text-sm font-bold uppercase tracking-wide text-muted-foreground">Payment Information</legend>
+              <div className="grid gap-2 rounded-lg border p-3 text-sm">
+                <div className="font-medium">Country: <span className="text-muted-foreground">{selectedCountry?.name || "—"}</span></div>
+                <div className="font-medium">Language: <span className="text-muted-foreground">{selectedLanguage === "fr" ? "French" : "English"}</span></div>
+                <div className="font-medium">Payment Method: <span className="text-muted-foreground">{selectedPaymentProvider === "paystack" ? "Paystack" : selectedPaymentProvider === "flutterwave" ? "Flutterwave" : "CinetPay"}</span></div>
+              </div>
+              <div className="rounded-lg border p-3 text-sm text-muted-foreground">
+                <div className="font-medium text-foreground">Selected payment summary</div>
+                <div className="mt-1">Provider is preselected for the chosen country and is read-only.</div>
+              </div>
               <label className="flex items-center gap-3 rounded-lg border p-3 cursor-pointer">
                 <input type="radio" checked={payOption === "full"} onChange={() => setPayOption("full")} />
-                <span>Pay Full Amount: <strong>{formatPrice(course.basePriceUSD, currency)}</strong></span>
+                <span>Pay Full Amount: <strong>{formatPrice(course.basePriceUSD, selectedCurrency)}</strong></span>
               </label>
               <label className="flex items-center gap-3 rounded-lg border p-3 cursor-pointer">
                 <input type="radio" checked={payOption === "partial"} onChange={() => setPayOption("partial")} />
-                <span>Pay Partial Amount: <strong>{formatPrice(course.basePriceUSD / 2, currency)}</strong> (50%)</span>
+                <span>Pay Partial Amount: <strong>{formatPrice(course.basePriceUSD / 2, selectedCurrency)}</strong> (50%)</span>
               </label>
             </fieldset>
 
