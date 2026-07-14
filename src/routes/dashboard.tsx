@@ -41,7 +41,7 @@ function InitialAvatar({ name, className }: { name: string; className?: string }
 
 function DashboardPage() {
   const { user, role: authRole, loading } = useAuth();
-  const { role, setRole } = useApp();
+  const { role, setRole, tutorApplications } = useApp();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -59,8 +59,6 @@ function DashboardPage() {
   const canSwitch = authRole === "admin";
   const displayName = user.fullName || user.email.split("@")[0];
 
-  // Pending tutor applications: a student who applied waits here until an admin decides.
-  const { tutorApplications } = useApp();
   const myPending = tutorApplications.find(
     (a) => a.email.toLowerCase() === user.email.toLowerCase() && a.status === "pending",
   );
@@ -125,12 +123,21 @@ function StudentDash() {
   const { user } = useAuth();
   const { enrollments, cohorts, courses, chats, sendChat, certificates } = useApp();
   const myEnrollments = useMemo(
-    () => enrollments.filter((e) => e.studentEmail.toLowerCase() === (user?.email ?? "").toLowerCase()),
+    () =>
+      enrollments.filter(
+        (e) =>
+          (e.studentEmail ?? "").toLowerCase() ===
+          (user?.email ?? "").toLowerCase(),
+      ),
     [enrollments, user?.email],
   );
   const myCohortIds = new Set(myEnrollments.map((e) => e.cohortId));
   const myCohorts = cohorts.filter((c) => myCohortIds.has(c.id));
-  const myCerts = certificates.filter((c) => c.studentEmail.toLowerCase() === (user?.email ?? "").toLowerCase());
+  const myCerts = certificates.filter(
+    (c) =>
+      (c.studentEmail ?? "").toLowerCase() ===
+      (user?.email ?? "").toLowerCase(),
+  );
 
   return (
     <Tabs defaultValue="overview">
@@ -504,6 +511,8 @@ function AdminEnrollmentsPanel() {
               <TableHead>Course</TableHead>
               <TableHead>Country</TableHead>
               <TableHead>Language</TableHead>
+              <TableHead>Amount</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead>Payment Provider</TableHead>
             </TableRow>
           </TableHeader>
@@ -520,6 +529,8 @@ function AdminEnrollmentsPanel() {
                   <TableCell>{course?.title.en ?? "Course"}</TableCell>
                   <TableCell>{entry.country || "—"}</TableCell>
                   <TableCell>{entry.language === "fr" ? "French" : entry.language === "en" ? "English" : "—"}</TableCell>
+                  <TableCell>{entry.paymentAmount && entry.paymentCurrency ? `${entry.paymentCurrency} ${entry.paymentAmount.toLocaleString()}` : "n/a"}</TableCell>
+                  <TableCell><Badge variant="secondary" className="capitalize">{entry.paymentStatus ?? "skipped"}</Badge></TableCell>
                   <TableCell>{providerLabel}</TableCell>
                 </TableRow>
               );
@@ -551,7 +562,7 @@ function AdminCoursesPanel() {
             <CourseForm
               initial={editing}
               onSubmit={(c) => {
-                if (editing) updateCourse(editing.id, c); else addCourse({ ...c, id: crypto.randomUUID() } as LocalCourse);
+                if (editing) updateCourse(editing.id, c); else addCourse({ ...c, id: "" } as LocalCourse);
                 setOpen(false); setEditing(null);
                 toast.success(editing ? "Course updated" : "Course added");
               }}
@@ -588,21 +599,29 @@ function CourseForm({
   onSubmit: (c: Partial<LocalCourse>) => void;
 }) {
   const [name, setName] = useState(initial?.title.en ?? "");
+  const [nameFr, setNameFr] = useState(initial?.title.fr ?? "");
   const [shortDesc, setShortDesc] = useState(initial?.desc.en ?? "");
+  const [shortDescFr, setShortDescFr] = useState(initial?.desc.fr ?? "");
   const [full, setFull] = useState(initial?.what.en ?? "");
+  const [fullFr, setFullFr] = useState(initial?.what.fr ?? "");
+  const [whatsnew, setWhatsnew] = useState(initial?.whatsnew.en ?? "");
+  const [whatsnewFr, setWhatsnewFr] = useState(initial?.whatsnew.fr ?? "");
+  const [audience, setAudience] = useState(initial?.for.en ?? "");
+  const [audienceFr, setAudienceFr] = useState(initial?.for.fr ?? "");
+  const [image, setImage] = useState(initial?.image ?? "");
   const [price, setPrice] = useState<number>(initial?.basePriceUSD ?? 800);
   const [cohortSize, setCohortSize] = useState<number>(initial?.cohortSize ?? 8);
-  const [mode, setMode] = useState<"online" | "physical">(initial?.delivery ?? "online");
+  const [mode, setMode] = useState<"online" | "physical" | "hybrid">(initial?.delivery ?? "online");
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
     onSubmit({
-      title: { en: name, fr: name },
-      desc: { en: shortDesc, fr: shortDesc },
-      what: { en: full, fr: full },
-      whatsnew: initial?.whatsnew ?? { en: "", fr: "" },
-      for: initial?.for ?? { en: "", fr: "" },
-      image: initial?.image ?? "",
+      title: { en: name, fr: nameFr || name },
+      desc: { en: shortDesc, fr: shortDescFr || shortDesc },
+      what: { en: full, fr: fullFr || full },
+      whatsnew: { en: whatsnew, fr: whatsnewFr || whatsnew },
+      for: { en: audience, fr: audienceFr || audience },
+      image,
       delivery: mode,
       basePriceUSD: Number(price),
       cohortSize: Math.min(10, Math.max(5, Number(cohortSize))),
@@ -611,19 +630,39 @@ function CourseForm({
 
   return (
     <form onSubmit={submit} className="grid gap-3">
-      <div><Label>Course name</Label><Input value={name} onChange={(e) => setName(e.target.value)} required /></div>
-      <div><Label>Short description</Label><Textarea value={shortDesc} onChange={(e) => setShortDesc(e.target.value)} rows={2} /></div>
-      <div><Label>Full description</Label><Textarea value={full} onChange={(e) => setFull(e.target.value)} rows={4} /></div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div><Label>Course name (English)</Label><Input value={name} onChange={(e) => setName(e.target.value)} required /></div>
+        <div><Label>Course name (French)</Label><Input value={nameFr} onChange={(e) => setNameFr(e.target.value)} /></div>
+      </div>
+      <div><Label>Image URL</Label><Input type="url" value={image} onChange={(e) => setImage(e.target.value)} placeholder="https://..." /></div>
+      {image ? <img src={image} alt="" className="h-32 w-full rounded-md border object-cover" /> : null}
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div><Label>Short description (English)</Label><Textarea value={shortDesc} onChange={(e) => setShortDesc(e.target.value)} rows={2} /></div>
+        <div><Label>Short description (French)</Label><Textarea value={shortDescFr} onChange={(e) => setShortDescFr(e.target.value)} rows={2} /></div>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div><Label>Full description (English)</Label><Textarea value={full} onChange={(e) => setFull(e.target.value)} rows={4} /></div>
+        <div><Label>Full description (French)</Label><Textarea value={fullFr} onChange={(e) => setFullFr(e.target.value)} rows={4} /></div>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div><Label>What's new (English)</Label><Textarea value={whatsnew} onChange={(e) => setWhatsnew(e.target.value)} rows={2} /></div>
+        <div><Label>What's new (French)</Label><Textarea value={whatsnewFr} onChange={(e) => setWhatsnewFr(e.target.value)} rows={2} /></div>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div><Label>Who this is for (English)</Label><Textarea value={audience} onChange={(e) => setAudience(e.target.value)} rows={2} /></div>
+        <div><Label>Who this is for (French)</Label><Textarea value={audienceFr} onChange={(e) => setAudienceFr(e.target.value)} rows={2} /></div>
+      </div>
       <div className="grid grid-cols-3 gap-2">
         <div><Label>Base price (USD)</Label><Input type="number" min={0} value={price} onChange={(e) => setPrice(Number(e.target.value))} required /></div>
         <div><Label>Cohort size (5–10)</Label><Input type="number" min={5} max={10} value={cohortSize} onChange={(e) => setCohortSize(Number(e.target.value))} required /></div>
         <div>
           <Label>Mode</Label>
-          <Select value={mode} onValueChange={(v) => setMode(v as "online" | "physical")}>
+          <Select value={mode} onValueChange={(v) => setMode(v as "online" | "physical" | "hybrid")}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="online">Online</SelectItem>
               <SelectItem value="physical">Physical</SelectItem>
+              <SelectItem value="hybrid">Hybrid</SelectItem>
             </SelectContent>
           </Select>
         </div>

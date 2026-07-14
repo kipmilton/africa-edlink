@@ -139,3 +139,136 @@ create policy "Admins insert roles" on public.user_roles
 
 -- 9. Enable realtime for tutor_applications so admin dashboards update live.
 alter publication supabase_realtime add table public.tutor_applications;
+
+-- =========================================================
+-- Launch update: Supabase-backed courses, enrollments, cohorts
+-- Run this section if your project was created from the earlier schema.
+-- =========================================================
+
+-- Rich course fields used by the storefront, course details page, and admin editor.
+alter table public.courses add column if not exists title_fr text;
+alter table public.courses add column if not exists description_fr text;
+alter table public.courses add column if not exists what_en text;
+alter table public.courses add column if not exists what_fr text;
+alter table public.courses add column if not exists whatsnew_en text;
+alter table public.courses add column if not exists whatsnew_fr text;
+alter table public.courses add column if not exists for_en text;
+alter table public.courses add column if not exists for_fr text;
+alter table public.courses add column if not exists base_price_usd numeric not null default 800;
+alter table public.courses add column if not exists cohort_size integer not null default 8 check (cohort_size between 5 and 10);
+
+-- Course cohorts assigned by admins to tutors.
+create table if not exists public.cohorts (
+  id uuid primary key default gen_random_uuid(),
+  course_id text not null references public.courses(slug) on delete cascade,
+  number integer not null,
+  tutor_email text,
+  completed boolean not null default false,
+  created_at timestamptz not null default now(),
+  unique (course_id, number)
+);
+
+grant select on public.cohorts to authenticated;
+grant insert, update on public.cohorts to authenticated;
+grant all on public.cohorts to service_role;
+alter table public.cohorts enable row level security;
+
+drop policy if exists "Users read cohorts" on public.cohorts;
+create policy "Users read cohorts" on public.cohorts
+  for select to authenticated using (true);
+
+drop policy if exists "Authenticated create cohorts for enrollment" on public.cohorts;
+create policy "Authenticated create cohorts for enrollment" on public.cohorts
+  for insert to authenticated with check (true);
+
+drop policy if exists "Admins update cohorts" on public.cohorts;
+create policy "Admins update cohorts" on public.cohorts
+  for update to authenticated
+  using (public.has_role(auth.uid(), 'admin'))
+  with check (public.has_role(auth.uid(), 'admin'));
+
+-- Student enrollment applications. Payment is intentionally skipped until gateways are ready.
+create table if not exists public.enrollments (
+  id uuid primary key default gen_random_uuid(),
+  course_id text not null references public.courses(slug) on delete restrict,
+  cohort_id uuid not null references public.cohorts(id) on delete restrict,
+  student_email text not null,
+  full_name text not null,
+  phone text,
+  education text,
+  heard_from text,
+  payment_option text not null default 'full' check (payment_option in ('full', 'partial')),
+  payment_amount numeric,
+  payment_currency text,
+  payment_status text not null default 'skipped' check (payment_status in ('pending', 'skipped', 'paid')),
+  country text,
+  language text check (language in ('en', 'fr')),
+  payment_provider text check (payment_provider in ('paystack', 'flutterwave', 'cinetpay')),
+  created_at timestamptz not null default now()
+);
+
+-- If enrollments already existed from an earlier attempt, bring it up to the launch schema.
+alter table public.enrollments add column if not exists course_id text references public.courses(slug) on delete restrict;
+alter table public.enrollments add column if not exists cohort_id uuid references public.cohorts(id) on delete restrict;
+alter table public.enrollments add column if not exists student_email text;
+alter table public.enrollments add column if not exists full_name text;
+alter table public.enrollments add column if not exists phone text;
+alter table public.enrollments add column if not exists education text;
+alter table public.enrollments add column if not exists heard_from text;
+alter table public.enrollments add column if not exists payment_option text default 'full';
+alter table public.enrollments add column if not exists payment_amount numeric;
+alter table public.enrollments add column if not exists payment_currency text;
+alter table public.enrollments add column if not exists payment_status text default 'skipped';
+alter table public.enrollments add column if not exists country text;
+alter table public.enrollments add column if not exists language text;
+alter table public.enrollments add column if not exists payment_provider text;
+alter table public.enrollments add column if not exists created_at timestamptz not null default now();
+
+grant select, insert on public.enrollments to authenticated;
+grant all on public.enrollments to service_role;
+alter table public.enrollments enable row level security;
+
+drop policy if exists "Users read own enrollments" on public.enrollments;
+create policy "Users read own enrollments" on public.enrollments
+  for select to authenticated
+  using (
+    public.has_role(auth.uid(), 'admin')
+    or lower(student_email) = lower(auth.jwt()->>'email')
+  );
+
+drop policy if exists "Users create own enrollments" on public.enrollments;
+create policy "Users create own enrollments" on public.enrollments
+  for insert to authenticated
+  with check (lower(student_email) = lower(auth.jwt()->>'email'));
+
+-- Seed/update the initial course catalog in Supabase.
+insert into public.courses (
+  slug, title, title_fr, description, description_fr, delivery, image_url,
+  what_en, what_fr, whatsnew_en, whatsnew_fr, for_en, for_fr, base_price_usd, cohort_size, is_published
+) values
+  ('fullstack', 'Full Stack Development', 'Développement Full Stack', 'Build production-ready web apps end-to-end with React, Node and PostgreSQL.', 'Créez des applications web complètes avec React, Node et PostgreSQL.', 'online', '', 'Full Stack engineering is the craft of building both the user-facing interface and the server, database and APIs that power it.', 'L''ingénierie Full Stack consiste à construire à la fois l''interface utilisateur et le serveur, la base de données et les APIs qui l''alimentent.', 'Now includes TanStack Start, Server Components and edge deployment to Cloudflare.', 'Inclut désormais TanStack Start, les Server Components et le déploiement edge sur Cloudflare.', 'Aspiring software engineers, bootcamp graduates, and self-taught coders aiming for their first dev role.', 'Futurs ingénieurs logiciels, diplômés de bootcamp et autodidactes visant un premier poste de développeur.', 900, 8, true),
+  ('ai', 'Artificial Intelligence', 'Intelligence Artificielle', 'From transformers to LLM agents — ship AI products that work.', 'Des transformeurs aux agents LLM — livrez des produits IA qui fonctionnent.', 'online', '', 'AI is the discipline of building systems that perceive, reason and act on data the way humans would.', 'L''IA est la discipline de construction de systèmes qui perçoivent, raisonnent et agissent comme des humains.', 'Updated with multimodal models, retrieval-augmented generation and agentic workflows.', 'Mis à jour avec les modèles multimodaux, RAG et les workflows agentiques.', 'Developers, researchers and product builders ready to integrate AI into real apps.', 'Développeurs, chercheurs et créateurs prêts à intégrer l''IA dans de vraies apps.', 1200, 8, true),
+  ('ml', 'Machine Learning', 'Apprentissage Automatique', 'Master regression, classification, and modern deep learning pipelines.', 'Maîtrisez la régression, la classification et le deep learning moderne.', 'physical', '', 'Machine Learning is teaching computers to find patterns and make predictions without being explicitly programmed.', 'Le ML consiste à apprendre aux machines à trouver des motifs et à prédire sans être explicitement programmées.', 'Hands-on MLOps tracks with Vertex AI and Hugging Face spaces.', 'Modules MLOps pratiques avec Vertex AI et Hugging Face.', 'Data-curious developers, analysts moving into modeling, and STEM graduates.', 'Développeurs curieux des données, analystes en transition et diplômés STEM.', 1100, 8, true),
+  ('analytics', 'Data Analytics', 'Analyse de Données', 'SQL, dashboards and storytelling for business decisions.', 'SQL, tableaux de bord et storytelling pour les décisions métier.', 'online', '', 'Data Analytics is the practice of turning raw data into insights stakeholders can act on.', 'L''analyse de données transforme les données brutes en insights exploitables.', 'New modules on Power BI, Looker Studio and African market case studies.', 'Nouveaux modules sur Power BI, Looker Studio et études de cas africaines.', 'Business professionals, marketers and ops leads who want data fluency.', 'Professionnels métier, marketeurs et chefs ops voulant maîtriser la donnée.', 700, 8, true),
+  ('ds', 'Data Science', 'Science des Données', 'Python, statistics and modelling to extract value from data.', 'Python, statistiques et modélisation pour valoriser la donnée.', 'physical', '', 'Data Science blends statistics, programming and domain expertise to solve real-world problems with data.', 'La science des données mêle statistiques, programmation et expertise métier pour résoudre des problèmes réels.', 'Refreshed capstones on fintech fraud detection and agritech yield prediction.', 'Projets renouvelés en détection de fraude fintech et prédiction agritech.', 'Engineers, statisticians and researchers moving into data-driven roles.', 'Ingénieurs, statisticiens et chercheurs en transition vers la data.', 1000, 8, true),
+  ('cyber', 'Cybersecurity', 'Cybersécurité', 'Defend systems, run red-team exercises and earn industry certs.', 'Défendez les systèmes, menez des exercices red team et certifiez-vous.', 'online', '', 'Cybersecurity is the practice of protecting systems, networks and data from digital attacks.', 'La cybersécurité protège les systèmes, réseaux et données contre les attaques numériques.', 'New labs on cloud security, mobile-money fraud and SOC playbooks.', 'Nouveaux labs sur la sécurité cloud, fraude mobile money et playbooks SOC.', 'IT professionals, sysadmins and developers focused on secure software.', 'Professionnels IT, sysadmins et développeurs axés sur la sécurité.', 950, 8, true)
+on conflict (slug) do update set
+  title = excluded.title,
+  title_fr = excluded.title_fr,
+  description = excluded.description,
+  description_fr = excluded.description_fr,
+  delivery = excluded.delivery,
+  what_en = excluded.what_en,
+  what_fr = excluded.what_fr,
+  whatsnew_en = excluded.whatsnew_en,
+  whatsnew_fr = excluded.whatsnew_fr,
+  for_en = excluded.for_en,
+  for_fr = excluded.for_fr,
+  base_price_usd = excluded.base_price_usd,
+  cohort_size = excluded.cohort_size,
+  is_published = excluded.is_published,
+  updated_at = now();
+
+alter publication supabase_realtime add table public.courses;
+alter publication supabase_realtime add table public.cohorts;
+alter publication supabase_realtime add table public.enrollments;

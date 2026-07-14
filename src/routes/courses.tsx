@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useApp } from "@/lib/app-context";
 import { formatPrice } from "@/lib/currency";
 import { Card } from "@/components/ui/card";
@@ -43,6 +43,12 @@ function CourseImage({
 
 function CoursesPage() {
   const { t, lang, courses, currency } = useApp();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+
+  if (pathname !== "/courses") {
+    return <Outlet />;
+  }
+
   return (
     <div className="bg-background">
       {/* Header */}
@@ -94,7 +100,11 @@ function CoursesPage() {
                   >
                     {c.delivery === "online"
                       ? t("courses.online")
-                      : t("courses.physical")}
+                      : c.delivery === "physical"
+                        ? t("courses.physical")
+                        : lang === "en"
+                          ? "Hybrid"
+                          : "Hybride"}
                   </Badge>
                 </div>
 

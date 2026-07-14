@@ -148,7 +148,7 @@ export function getBrowserLanguage(): UiLang {
 }
 
 export function formatPrice(baseUSD: number, currency: Currency): string {
-  const value = baseUSD * (RATES[currency] ?? 1);
+  const value = convertUSDToCurrency(baseUSD, currency);
   try {
     return new Intl.NumberFormat(undefined, {
       style: "currency",
@@ -158,6 +158,10 @@ export function formatPrice(baseUSD: number, currency: Currency): string {
   } catch {
     return `${currency} ${value.toFixed(0)}`;
   }
+}
+
+export function convertUSDToCurrency(baseUSD: number, currency: Currency): number {
+  return baseUSD * (RATES[currency] ?? 1);
 }
 
 const CACHE_KEY = "serenog.geo";

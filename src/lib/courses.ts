@@ -8,7 +8,7 @@ import cyberImg from "@/assets/course-cyber.jpg";
 export type Course = {
   id: string;
   image: string;
-  delivery: "online" | "physical";
+  delivery: "online" | "physical" | "hybrid";
   title: { en: string; fr: string };
   desc: { en: string; fr: string };
   for: { en: string; fr: string };

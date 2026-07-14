@@ -24,6 +24,9 @@ export type Enrollment = {
   education: string;
   heardFrom: string;
   paymentOption: "full" | "partial";
+  paymentAmount?: number;
+  paymentCurrency?: Currency;
+  paymentStatus?: "pending" | "skipped" | "paid";
   country?: string;
   language?: Lang;
   paymentProvider?: PaymentProvider;
@@ -99,7 +102,7 @@ type AppCtx = {
   updateCourse: (id: string, patch: Partial<LocalCourse>) => void;
   enrollments: Enrollment[];
   cohorts: Cohort[];
-  enroll: (input: Omit<Enrollment, "id" | "cohortId" | "createdAt">) => { enrollment: Enrollment; cohort: Cohort };
+  enroll: (input: Omit<Enrollment, "id" | "cohortId" | "createdAt">) => Promise<{ enrollment: Enrollment; cohort: Cohort }>;
   assignTutorToCohort: (cohortId: string, tutorEmail: string) => void;
   markCohortComplete: (cohortId: string) => void;
   chats: ChatMessage[];
@@ -133,6 +136,135 @@ function hydrateSeed(): LocalCourse[] {
     basePriceUSD: SEED_PRICES[c.id] ?? 800,
     cohortSize: 8,
   }));
+}
+
+type CourseRow = {
+  slug?: string | null;
+  title?: string | null;
+  title_fr?: string | null;
+  description?: string | null;
+  description_fr?: string | null;
+  delivery?: "online" | "physical" | "hybrid" | null;
+  image_url?: string | null;
+  what_en?: string | null;
+  what_fr?: string | null;
+  whatsnew_en?: string | null;
+  whatsnew_fr?: string | null;
+  for_en?: string | null;
+  for_fr?: string | null;
+  base_price_usd?: number | null;
+  cohort_size?: number | null;
+  is_published?: boolean | null;
+};
+
+type EnrollmentRow = {
+  id: string;
+  course_id: string;
+  cohort_id: string;
+  student_email: string;
+  full_name: string;
+  phone?: string | null;
+  education?: string | null;
+  heard_from?: string | null;
+  payment_option?: "full" | "partial" | null;
+  payment_amount?: number | null;
+  payment_currency?: Currency | null;
+  payment_status?: "pending" | "skipped" | "paid" | null;
+  country?: string | null;
+  language?: Lang | null;
+  payment_provider?: PaymentProvider | null;
+  created_at?: string | null;
+};
+
+type CohortRow = {
+  id: string;
+  course_id: string;
+  number: number;
+  tutor_email?: string | null;
+  completed?: boolean | null;
+};
+
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64);
+}
+
+function mapCourseRow(row: CourseRow): LocalCourse | null {
+  const id = row.slug?.trim();
+  if (!id || !row.title) return null;
+  const seed = hydrateSeed().find((course) => course.id === id);
+  return {
+    id,
+    image: row.image_url || seed?.image || "",
+    delivery: row.delivery ?? seed?.delivery ?? "online",
+    title: { en: row.title, fr: row.title_fr || row.title },
+    desc: {
+      en: row.description || seed?.desc.en || "",
+      fr: row.description_fr || row.description || seed?.desc.fr || "",
+    },
+    what: {
+      en: row.what_en || seed?.what.en || row.description || "",
+      fr: row.what_fr || row.what_en || seed?.what.fr || row.description_fr || "",
+    },
+    whatsnew: {
+      en: row.whatsnew_en || seed?.whatsnew.en || "",
+      fr: row.whatsnew_fr || row.whatsnew_en || seed?.whatsnew.fr || "",
+    },
+    for: {
+      en: row.for_en || seed?.for.en || "",
+      fr: row.for_fr || row.for_en || seed?.for.fr || "",
+    },
+    basePriceUSD: Number(row.base_price_usd ?? seed?.basePriceUSD ?? 800),
+    cohortSize: Math.min(10, Math.max(5, Number(row.cohort_size ?? seed?.cohortSize ?? 8))),
+  };
+}
+
+function courseToRow(course: LocalCourse | Partial<LocalCourse>, fallbackId?: string): CourseRow {
+  const title = course.title?.en?.trim() || "New Course";
+  return {
+    slug: fallbackId ?? course.id ?? slugify(title),
+    title,
+    title_fr: course.title?.fr || title,
+    description: course.desc?.en ?? "",
+    description_fr: course.desc?.fr ?? course.desc?.en ?? "",
+    delivery: course.delivery ?? "online",
+    image_url: course.image ?? "",
+    what_en: course.what?.en ?? "",
+    what_fr: course.what?.fr ?? course.what?.en ?? "",
+    whatsnew_en: course.whatsnew?.en ?? "",
+    whatsnew_fr: course.whatsnew?.fr ?? course.whatsnew?.en ?? "",
+    for_en: course.for?.en ?? "",
+    for_fr: course.for?.fr ?? course.for?.en ?? "",
+    base_price_usd: Number(course.basePriceUSD ?? 800),
+    cohort_size: Math.min(10, Math.max(5, Number(course.cohortSize ?? 8))),
+    is_published: true,
+  };
+}
+
+function mapEnrollmentRow(row: EnrollmentRow): Enrollment {
+  return {
+    id: row.id,
+    courseId: row.course_id,
+    cohortId: row.cohort_id,
+    studentEmail: row.student_email,
+    fullName: row.full_name,
+    phone: row.phone ?? "",
+    education: row.education ?? "",
+    heardFrom: row.heard_from ?? "",
+    paymentOption: row.payment_option ?? "full",
+    paymentAmount: row.payment_amount ?? undefined,
+    paymentCurrency: row.payment_currency ?? undefined,
+    paymentStatus: row.payment_status ?? "skipped",
+    country: row.country ?? undefined,
+    language: row.language ?? undefined,
+    paymentProvider: row.payment_provider ?? undefined,
+    createdAt: row.created_at ?? new Date().toISOString(),
+  };
 }
 
 const LS = {
@@ -348,6 +480,63 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  // Supabase is the launch source of truth. Local storage remains a dev/offline fallback.
+  useEffect(() => {
+    let mounted = true;
+
+    const load = async () => {
+      const [{ data: courseRows }, { data: cohortRows }, { data: enrollmentRows }] = await Promise.all([
+        supabase
+          .from("courses")
+          .select("*")
+          .order("created_at", { ascending: true }),
+        supabase
+          .from("cohorts")
+          .select("*")
+          .order("created_at", { ascending: true }),
+        supabase
+          .from("enrollments")
+          .select("*")
+          .order("created_at", { ascending: false }),
+      ]);
+
+      if (!mounted) return;
+
+      const mappedCourses = ((courseRows ?? []) as CourseRow[])
+        .map(mapCourseRow)
+        .filter((course): course is LocalCourse => !!course);
+      if (mappedCourses.length > 0) setCourses(mappedCourses);
+
+      const mappedEnrollments = ((enrollmentRows ?? []) as EnrollmentRow[]).map(mapEnrollmentRow);
+      setEnrollments(mappedEnrollments);
+
+      const mappedCohorts = ((cohortRows ?? []) as CohortRow[]).map((row) => ({
+        id: row.id,
+        courseId: row.course_id,
+        number: row.number,
+        tutorEmail: row.tutor_email ?? undefined,
+        completed: !!row.completed,
+        studentIds: mappedEnrollments
+          .filter((enrollment) => enrollment.cohortId === row.id)
+          .map((enrollment) => enrollment.id),
+      }));
+      setCohorts(mappedCohorts);
+    };
+
+    load();
+    const channel = supabase
+      .channel("catalog_enrollment_changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "courses" }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "cohorts" }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "enrollments" }, () => load())
+      .subscribe();
+
+    return () => {
+      mounted = false;
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   // Sync tutor applications from Supabase so admins see them cross-device.
   useEffect(() => {
     let mounted = true;
@@ -391,11 +580,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => { saveLS(LS.pending, pendingCertifications); }, [pendingCertifications]);
   useEffect(() => { saveLS(LS.certs, certificates); }, [certificates]);
 
-  const addCourse = (c: LocalCourse) => setCourses((prev) => [c, ...prev]);
-  const updateCourse = (id: string, patch: Partial<LocalCourse>) =>
-    setCourses((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+  const addCourse = (c: LocalCourse) => {
+    const id = c.id || slugify(c.title.en);
+    const course = { ...c, id };
+    setCourses((prev) => [course, ...prev]);
+    supabase.from("courses").insert(courseToRow(course, id)).then(({ error }) => {
+      if (error) console.error("Failed to save course", error);
+    });
+  };
 
-  const enroll: AppCtx["enroll"] = (input) => {
+  const updateCourse = (id: string, patch: Partial<LocalCourse>) => {
+    const current = courses.find((course) => course.id === id);
+    const updated = current ? { ...current, ...patch } : { ...patch, id };
+    setCourses((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+    supabase.from("courses").update(courseToRow(updated, id)).eq("slug", id).then(({ error }) => {
+      if (error) console.error("Failed to update course", error);
+    });
+  };
+
+  const enroll: AppCtx["enroll"] = async (input) => {
     const course = courses.find((c) => c.id === input.courseId);
     const size = Math.min(10, Math.max(5, course?.cohortSize ?? 8));
     const courseCohorts = cohorts.filter((c) => c.courseId === input.courseId && !c.completed);
@@ -410,6 +613,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         completed: false,
       };
       newCohorts = [...cohorts, target];
+      await supabase.from("cohorts").insert({
+        id: target.id,
+        course_id: target.courseId,
+        number: target.number,
+        completed: false,
+      });
     }
     const enrollment: Enrollment = {
       ...input,
@@ -417,6 +626,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
       cohortId: target.id,
       createdAt: new Date().toISOString(),
     };
+    const { error } = await supabase.from("enrollments").insert({
+      id: enrollment.id,
+      course_id: enrollment.courseId,
+      cohort_id: enrollment.cohortId,
+      student_email: enrollment.studentEmail,
+      full_name: enrollment.fullName,
+      phone: enrollment.phone,
+      education: enrollment.education,
+      heard_from: enrollment.heardFrom,
+      payment_option: enrollment.paymentOption,
+      payment_amount: enrollment.paymentAmount,
+      payment_currency: enrollment.paymentCurrency,
+      payment_status: enrollment.paymentStatus ?? "skipped",
+      country: enrollment.country,
+      language: enrollment.language,
+      payment_provider: enrollment.paymentProvider,
+      created_at: enrollment.createdAt,
+    });
+    if (error) console.error("Failed to save enrollment", error);
     const updatedCohort: Cohort = { ...target, studentIds: [...target.studentIds, enrollment.id] };
     newCohorts = newCohorts.map((c) => (c.id === updatedCohort.id ? updatedCohort : c));
     setCohorts(newCohorts);
@@ -424,11 +652,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return { enrollment, cohort: updatedCohort };
   };
 
-  const assignTutorToCohort = (cohortId: string, tutorEmail: string) =>
+  const assignTutorToCohort = (cohortId: string, tutorEmail: string) => {
     setCohorts((prev) => prev.map((c) => (c.id === cohortId ? { ...c, tutorEmail } : c)));
+    supabase.from("cohorts").update({ tutor_email: tutorEmail }).eq("id", cohortId).then(({ error }) => {
+      if (error) console.error("Failed to assign tutor", error);
+    });
+  };
 
-  const markCohortComplete = (cohortId: string) =>
+  const markCohortComplete = (cohortId: string) => {
     setCohorts((prev) => prev.map((c) => (c.id === cohortId ? { ...c, completed: true } : c)));
+    supabase.from("cohorts").update({ completed: true }).eq("id", cohortId).then(({ error }) => {
+      if (error) console.error("Failed to mark cohort complete", error);
+    });
+  };
 
   const sendChat: AppCtx["sendChat"] = (m) =>
     setChats((prev) => [...prev, { ...m, id: crypto.randomUUID(), createdAt: new Date().toISOString() }]);

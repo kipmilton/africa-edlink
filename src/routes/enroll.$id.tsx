@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useApp } from "@/lib/app-context";
 import { useAuth } from "@/lib/use-auth";
 import { supabase } from "@/integrations/supabase/client";
-import { COUNTRY_OPTIONS, formatPrice, type PaymentProvider } from "@/lib/currency";
+import { COUNTRY_OPTIONS, convertUSDToCurrency, formatPrice, type PaymentProvider } from "@/lib/currency";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,11 +36,15 @@ function EnrollPage() {
   const [heard, setHeard] = useState("Google Search");
   const [country, setCountry] = useState(detectedCountry || "");
   const [payOption, setPayOption] = useState<"full" | "partial">("full");
+  const [partialAmount, setPartialAmount] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [showPaid, setShowPaid] = useState(false);
   const selectedCountry = useMemo(() => COUNTRY_OPTIONS.find((item) => item.name === country || item.code === country), [country]);
   const selectedLanguage = selectedCountry?.language ?? lang;
   const selectedCurrency = selectedCountry?.currency ?? currency;
   const selectedPaymentProvider = (selectedCountry?.paymentProvider ?? "flutterwave") as PaymentProvider;
+  const minimumPartialAmount = convertUSDToCurrency(10, selectedCurrency);
+  const fullAmount = convertUSDToCurrency(course?.basePriceUSD ?? 0, selectedCurrency);
 
   useEffect(() => {
     if (selectedCountry && selectedLanguage !== lang) {
@@ -89,22 +93,41 @@ function EnrollPage() {
     toast.success("Account created — check your email to confirm, then sign in.");
   };
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!user) return toast.error("Sign in above to continue");
-    enroll({
+    const amountToRecord = payOption === "full" ? fullAmount : Number(partialAmount);
+    if (payOption === "partial") {
+      if (!Number.isFinite(amountToRecord)) return toast.error("Enter a valid partial payment amount");
+      if (amountToRecord <= minimumPartialAmount) {
+        return toast.error(`Partial amount must be more than ${formatPrice(10, selectedCurrency)}`);
+      }
+      if (amountToRecord > fullAmount) {
+        return toast.error("Partial amount cannot be more than the full tuition amount");
+      }
+    }
+
+    setSubmitting(true);
+    try {
+      await enroll({
       courseId: course.id,
-      studentEmail: email,
+      studentEmail: user.email,
       fullName,
       phone,
       education,
       heardFrom: heard,
       paymentOption: payOption,
+      paymentAmount: amountToRecord,
+      paymentCurrency: selectedCurrency,
+      paymentStatus: "skipped",
       country: selectedCountry?.name ?? country,
       language: selectedCountry?.language ?? lang,
       paymentProvider: selectedCountry?.paymentProvider ?? selectedPaymentProvider,
-    });
-    setShowPaid(true);
+      });
+      setShowPaid(true);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -140,7 +163,7 @@ function EnrollPage() {
 
         <Card className="p-6">
           <h2 className="text-xl font-bold">Enrollment Details for {course.title.en} · Cohort {nextCohortNumber}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Complete the form below to proceed to payment.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Complete the form below. Payment gateway setup is currently skipped, so your enrollment will be submitted directly.</p>
 
           <form onSubmit={submit} className="mt-6 space-y-6">
             <fieldset className="grid gap-3">
@@ -196,28 +219,51 @@ function EnrollPage() {
               </div>
               <div className="rounded-lg border p-3 text-sm text-muted-foreground">
                 <div className="font-medium text-foreground">Selected payment summary</div>
-                <div className="mt-1">Provider is preselected for the chosen country and is read-only.</div>
+                <div className="mt-1">Gateway collection is temporarily skipped. Your enrollment will still be submitted for admin review and tutor assignment.</div>
               </div>
               <label className="flex items-center gap-3 rounded-lg border p-3 cursor-pointer">
                 <input type="radio" checked={payOption === "full"} onChange={() => setPayOption("full")} />
                 <span>Pay Full Amount: <strong>{formatPrice(course.basePriceUSD, selectedCurrency)}</strong></span>
               </label>
-              <label className="flex items-center gap-3 rounded-lg border p-3 cursor-pointer">
-                <input type="radio" checked={payOption === "partial"} onChange={() => setPayOption("partial")} />
-                <span>Pay Partial Amount: <strong>{formatPrice(course.basePriceUSD / 2, selectedCurrency)}</strong> (50%)</span>
-              </label>
+              <div className="rounded-lg border p-3">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="radio" checked={payOption === "partial"} onChange={() => setPayOption("partial")} />
+                  <span>Pay Partial Amount</span>
+                </label>
+                {payOption === "partial" && (
+                  <div className="mt-3 grid gap-2">
+                    <Label htmlFor="partial-amount">Enter amount in {selectedCurrency}</Label>
+                    <Input
+                      id="partial-amount"
+                      type="number"
+                      min={Math.floor(minimumPartialAmount) + 1}
+                      max={Math.floor(fullAmount)}
+                      step="1"
+                      value={partialAmount}
+                      onChange={(event) => setPartialAmount(event.target.value)}
+                      placeholder={`More than ${formatPrice(10, selectedCurrency)}`}
+                      required
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Minimum accepted partial payment is more than {formatPrice(10, selectedCurrency)}.
+                    </p>
+                  </div>
+                )}
+              </div>
             </fieldset>
 
-            <Button type="submit" size="lg" className="w-full" disabled={!user}>Proceed to Payment</Button>
-            {!user && <p className="text-center text-xs text-muted-foreground">Sign in above to enable payment.</p>}
+            <Button type="submit" size="lg" className="w-full" disabled={!user || submitting}>
+              {submitting ? "Submitting..." : "Submit Enrollment"}
+            </Button>
+            {!user && <p className="text-center text-xs text-muted-foreground">Sign in above to submit enrollment.</p>}
           </form>
         </Card>
 
         <Dialog open={showPaid} onOpenChange={setShowPaid}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Payment Gateway Integration Coming Soon!</DialogTitle>
-              <DialogDescription>Your enrollment details have been saved successfully.</DialogDescription>
+              <DialogTitle>Enrollment Submitted</DialogTitle>
+              <DialogDescription>Your enrollment has been saved. You can now continue to your student dashboard.</DialogDescription>
             </DialogHeader>
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowPaid(false)}>Close</Button>
