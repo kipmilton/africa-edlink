@@ -22,6 +22,7 @@ import {
   Send,
   ArrowRight,
 } from "lucide-react";
+import careerImg from "@/assets/career img.webp";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/careers")({
@@ -65,7 +66,7 @@ const specializations = [
 function CareersHeroPlaceholder() {
   return (
     <div className="aspect-4/3 w-full overflow-hidden rounded-2xl bg-linear-to-br from-primary/10 via-background to-accent/10 grid place-items-center">
-      <GraduationCap className="h-16 w-16 text-primary/30" />
+      <img src={careerImg} alt="Careers" className="object-cover h-full w-full" />
     </div>
   );
 }
@@ -117,25 +118,41 @@ function CareersPage() {
 
     if (resume) {
       setUploadingResume(true);
-      const filePath = `tutor-resumes/${crypto.randomUUID()}_${resume.name.replace(/\s+/g, "_")}`;
+      // Path should be relative to the bucket (don't include bucket name twice)
+      const filePath = `${crypto.randomUUID()}_${resume.name.replace(/\s+/g, "_")}`;
+
       const { error: uploadError } = await supabase.storage
         .from("tutor-resumes")
         .upload(filePath, resume, { upsert: false });
       setUploadingResume(false);
+
       if (uploadError) {
-        setResumeError(
-          T(
-            "Resume upload failed. Please try again.",
-            "Le téléchargement du CV a échoué. Veuillez réessayer.",
-          ),
-        );
-        toast.error(uploadError.message);
-        return;
+        const msg = String(uploadError.message ?? "").toLowerCase();
+        // If the bucket is missing or forbidden, inform the user/admin and continue without the resume.
+        if (msg.includes("bucket") || msg.includes("does not exist") || msg.includes("forbidden") || msg.includes("unauthorized")) {
+          toast.error(
+            T(
+              "Resume upload unavailable (storage misconfigured). Your application will be submitted without the resume. Admin: ensure 'tutor-resumes' bucket exists and is writable.",
+              "Téléversement du CV indisponible (stockage mal configuré). Votre candidature sera envoyée sans CV. Admin: vérifiez que le bucket 'tutor-resumes' existe et est accessible.",
+            ),
+          );
+          // continue without resume
+        } else {
+          setResumeError(
+            T(
+              "Resume upload failed. Please try again.",
+              "Le téléchargement du CV a échoué. Veuillez réessayer.",
+            ),
+          );
+          toast.error(uploadError.message);
+          return;
+        }
+      } else {
+        const { data } = supabase.storage.from("tutor-resumes").getPublicUrl(filePath);
+        resumeUrl = data.publicUrl;
+        resumeName = resume.name;
+        resumeSize = resume.size;
       }
-      const { data } = supabase.storage.from("tutor-resumes").getPublicUrl(filePath);
-      resumeUrl = data.publicUrl;
-      resumeName = resume.name;
-      resumeSize = resume.size;
     }
 
     // Persist to Supabase so admins can review from any device.

@@ -100,6 +100,16 @@ export function Footer() {
           <p className="text-xs text-muted-foreground">
             © 2026 Serenog. {t("footer.rights")}
           </p>
+
+          <a
+            href="https://www.linkedin.com/in/milton-kiprop-b1620a237"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Built by Milton Kiprop
+          </a>
+
           <div className="flex gap-6 text-xs text-muted-foreground">
             <a href="#" className="transition-colors hover:text-foreground">Privacy Policy</a>
             <a href="#" className="transition-colors hover:text-foreground">Terms of Service</a>
