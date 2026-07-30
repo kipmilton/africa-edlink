@@ -1,5 +1,5 @@
-export type Currency = "USD" | "KES" | "NGN" | "GHS" | "XOF" | "XAF" | "EUR" | "GBP" | "GMD" | "SSP" | "UGX" | "TZS" | "RWF" | "ZMW" | "ZWL" | "MWK" | "LRD" | "SLE" | "GNF" | "MRU" | "BIF" | "DJF" | "KMF" | "CDF" | "STN";
-export type PaymentProvider = "paystack" | "flutterwave" | "cinetpay";
+export type Currency = "USD" | "KES" | "NGN" | "GHS" | "XOF" | "XAF" | "EUR" | "GBP" | "GMD" | "SSP" | "UGX" | "TZS" | "RWF" | "ZMW" | "ZWL" | "MWK" | "LRD" | "SLE" | "GNF" | "MRU" | "BIF" | "DJF" | "KMF" | "CDF" | "STN" | "ETB" | "ZAR" | "NAD" | "BWP";
+export type PaymentProvider = "paystack" | "flutterwave" | "seerbit";
 export type UiLang = "en" | "fr";
 
 export type CountryProfile = {
@@ -37,6 +37,10 @@ const RATES: Record<Currency, number> = {
   KMF: 450,
   CDF: 2550,
   STN: 22,
+  ETB: 58,
+  ZAR: 18,
+  NAD: 18,
+  BWP: 14,
 };
 
 const COUNTRY_OPTIONS: CountryProfile[] = [
@@ -49,31 +53,35 @@ const COUNTRY_OPTIONS: CountryProfile[] = [
   { name: "Uganda", code: "UG", language: "en", paymentProvider: "flutterwave", currency: "UGX" },
   { name: "Tanzania", code: "TZ", language: "en", paymentProvider: "flutterwave", currency: "TZS" },
   { name: "Rwanda", code: "RW", language: "en", paymentProvider: "flutterwave", currency: "RWF" },
+  { name: "Ethiopia", code: "ET", language: "en", paymentProvider: "flutterwave", currency: "ETB" },
   { name: "South Sudan", code: "SS", language: "en", paymentProvider: "flutterwave", currency: "SSP" },
   { name: "Zambia", code: "ZM", language: "en", paymentProvider: "flutterwave", currency: "ZMW" },
   { name: "Zimbabwe", code: "ZW", language: "en", paymentProvider: "flutterwave", currency: "ZWL" },
+  { name: "South Africa", code: "ZA", language: "en", paymentProvider: "flutterwave", currency: "ZAR" },
+  { name: "Namibia", code: "NA", language: "en", paymentProvider: "flutterwave", currency: "NAD" },
+  { name: "Botswana", code: "BW", language: "en", paymentProvider: "flutterwave", currency: "BWP" },
   { name: "Malawi", code: "MW", language: "en", paymentProvider: "flutterwave", currency: "MWK" },
-  { name: "Benin", code: "BJ", language: "fr", paymentProvider: "cinetpay", currency: "XOF" },
-  { name: "Burkina Faso", code: "BF", language: "fr", paymentProvider: "cinetpay", currency: "XOF" },
-  { name: "Côte d'Ivoire", code: "CI", language: "fr", paymentProvider: "cinetpay", currency: "XOF" },
-  { name: "Guinea", code: "GN", language: "fr", paymentProvider: "cinetpay", currency: "GNF" },
-  { name: "Mali", code: "ML", language: "fr", paymentProvider: "cinetpay", currency: "XOF" },
-  { name: "Niger", code: "NE", language: "fr", paymentProvider: "cinetpay", currency: "XOF" },
-  { name: "Senegal", code: "SN", language: "fr", paymentProvider: "cinetpay", currency: "XOF" },
-  { name: "Togo", code: "TG", language: "fr", paymentProvider: "cinetpay", currency: "XOF" },
-  { name: "Mauritania", code: "MR", language: "fr", paymentProvider: "cinetpay", currency: "MRU" },
-  { name: "Guinea-Bissau", code: "GW", language: "fr", paymentProvider: "cinetpay", currency: "XOF" },
-  { name: "Burundi", code: "BI", language: "fr", paymentProvider: "cinetpay", currency: "BIF" },
-  { name: "Djibouti", code: "DJ", language: "fr", paymentProvider: "cinetpay", currency: "DJF" },
-  { name: "Comoros", code: "KM", language: "fr", paymentProvider: "cinetpay", currency: "KMF" },
-  { name: "Cameroon", code: "CM", language: "fr", paymentProvider: "cinetpay", currency: "XAF" },
-  { name: "Central African Republic", code: "CF", language: "fr", paymentProvider: "cinetpay", currency: "XAF" },
-  { name: "Chad", code: "TD", language: "fr", paymentProvider: "cinetpay", currency: "XAF" },
-  { name: "Democratic Republic of the Congo", code: "CD", language: "fr", paymentProvider: "cinetpay", currency: "CDF" },
-  { name: "Republic of the Congo", code: "CG", language: "fr", paymentProvider: "cinetpay", currency: "XAF" },
-  { name: "Gabon", code: "GA", language: "fr", paymentProvider: "cinetpay", currency: "XAF" },
-  { name: "Equatorial Guinea", code: "GQ", language: "fr", paymentProvider: "cinetpay", currency: "XAF" },
-  { name: "São Tomé and Príncipe", code: "ST", language: "fr", paymentProvider: "cinetpay", currency: "STN" },
+  { name: "Benin", code: "BJ", language: "fr", paymentProvider: "seerbit", currency: "XOF" },
+  { name: "Burkina Faso", code: "BF", language: "fr", paymentProvider: "seerbit", currency: "XOF" },
+  { name: "Côte d'Ivoire", code: "CI", language: "fr", paymentProvider: "seerbit", currency: "XOF" },
+  { name: "Guinea", code: "GN", language: "fr", paymentProvider: "seerbit", currency: "GNF" },
+  { name: "Mali", code: "ML", language: "fr", paymentProvider: "seerbit", currency: "XOF" },
+  { name: "Niger", code: "NE", language: "fr", paymentProvider: "seerbit", currency: "XOF" },
+  { name: "Senegal", code: "SN", language: "fr", paymentProvider: "seerbit", currency: "XOF" },
+  { name: "Togo", code: "TG", language: "fr", paymentProvider: "seerbit", currency: "XOF" },
+  { name: "Mauritania", code: "MR", language: "fr", paymentProvider: "seerbit", currency: "MRU" },
+  { name: "Guinea-Bissau", code: "GW", language: "fr", paymentProvider: "seerbit", currency: "XOF" },
+  { name: "Burundi", code: "BI", language: "fr", paymentProvider: "seerbit", currency: "BIF" },
+  { name: "Djibouti", code: "DJ", language: "fr", paymentProvider: "seerbit", currency: "DJF" },
+  { name: "Comoros", code: "KM", language: "fr", paymentProvider: "seerbit", currency: "KMF" },
+  { name: "Cameroon", code: "CM", language: "fr", paymentProvider: "seerbit", currency: "XAF" },
+  { name: "Central African Republic", code: "CF", language: "fr", paymentProvider: "seerbit", currency: "XAF" },
+  { name: "Chad", code: "TD", language: "fr", paymentProvider: "seerbit", currency: "XAF" },
+  { name: "Democratic Republic of the Congo", code: "CD", language: "fr", paymentProvider: "flutterwave", currency: "CDF" },
+  { name: "Republic of the Congo", code: "CG", language: "fr", paymentProvider: "seerbit", currency: "XAF" },
+  { name: "Gabon", code: "GA", language: "fr", paymentProvider: "seerbit", currency: "XAF" },
+  { name: "Equatorial Guinea", code: "GQ", language: "fr", paymentProvider: "seerbit", currency: "XAF" },
+  { name: "São Tomé and Príncipe", code: "ST", language: "fr", paymentProvider: "seerbit", currency: "STN" },
 ];
 
 export { COUNTRY_OPTIONS };
@@ -88,7 +96,7 @@ const COUNTRY_ALIASES = new Map<string, string>([
 ]);
 const COUNTRY_BY_NAME = new Map(COUNTRY_OPTIONS.map((country) => [normalizeCountryKey(country.name), country]));
 const DEFAULT_PROFILE: CountryProfile = { name: "Kenya", code: "KE", language: "en", paymentProvider: "flutterwave", currency: "KES" };
-const FALLBACK_FRENCH_PROFILE: CountryProfile = { name: "France", code: "FR", language: "fr", paymentProvider: "cinetpay", currency: "EUR" };
+const FALLBACK_FRENCH_PROFILE: CountryProfile = { name: "France", code: "FR", language: "fr", paymentProvider: "flutterwave", currency: "EUR" };
 
 function normalizeCountryKey(value: string): string {
   return value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -153,7 +161,7 @@ export function formatPrice(baseUSD: number, currency: Currency): string {
     return new Intl.NumberFormat(undefined, {
       style: "currency",
       currency,
-      maximumFractionDigits: ["XOF", "XAF", "NGN", "KES", "UGX", "TZS", "RWF", "ZMW", "ZWL", "MWK", "LRD", "SLE", "GMD", "SSP", "GNF", "MRU", "BIF", "DJF", "KMF", "CDF", "STN"].includes(currency) ? 0 : 2,
+      maximumFractionDigits: ["XOF", "XAF", "NGN", "KES", "UGX", "TZS", "RWF", "ZMW", "ZWL", "MWK", "LRD", "SLE", "GMD", "SSP", "GNF", "MRU", "BIF", "DJF", "KMF", "CDF", "STN", "ETB", "ZAR", "NAD", "BWP"].includes(currency) ? 0 : 2,
     }).format(value);
   } catch {
     return `${currency} ${value.toFixed(0)}`;

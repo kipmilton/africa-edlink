@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import logo from "@/assets/logo.jpeg";
 import { useApp } from "@/lib/app-context";
 
 export function Footer() {
@@ -10,11 +11,13 @@ export function Footer() {
           {/* Brand */}
           <div className="lg:col-span-1">
             <Link to="/" className="flex shrink-0 items-center gap-2.5">
-              <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground font-heading text-lg font-extrabold leading-none tracking-tight">
-                S
-              </div>
+              <img
+                src={logo}
+                alt="Serencog Technologies logo"
+                className="h-10 w-auto max-w-[8rem] rounded-lg object-contain"
+              />
               <span className="font-heading text-lg font-extrabold tracking-tight text-foreground">
-                Serenog
+                Serencog
               </span>
             </Link>
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">
@@ -72,7 +75,7 @@ export function Footer() {
             <h4 className="font-heading text-sm font-bold text-foreground">Contact</h4>
             <ul className="mt-4 space-y-3 text-sm text-muted-foreground">
               <li className="transition-colors hover:text-foreground">
-                <a href="mailto:hello@serenog.com">hello@serenog.com</a>
+                <a href="mailto:hello@serencog.com">hello@serencog.com</a>
               </li>
               <li className="transition-colors hover:text-foreground">
                 <a href="tel:+2250700000000">+254 700 00 00 00</a>
@@ -98,7 +101,7 @@ export function Footer() {
         {/* Bottom bar */}
         <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-border pt-8 sm:flex-row">
           <p className="text-xs text-muted-foreground">
-            © 2026 Serenog. {t("footer.rights")}
+            © 2026 Serencog Technologies. {t("footer.rights")}
           </p>
 
           <a

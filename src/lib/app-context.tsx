@@ -1,6 +1,12 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { courses as seedCourses, type Course } from "@/lib/courses";
 import { detectCountry, getBrowserLanguage, type Currency, type PaymentProvider } from "@/lib/currency";
+import {
+  resolveRegionalCluster,
+  type ClusterCode,
+  type PreferredLanguage,
+  type PreferredTimeSlot,
+} from "@/lib/regional-clusters";
 import { supabase } from "@/integrations/supabase/client";
 
 export type Lang = "en" | "fr";
@@ -29,6 +35,9 @@ export type Enrollment = {
   paymentStatus?: "pending" | "skipped" | "paid";
   country?: string;
   language?: Lang;
+  preferredLanguage?: PreferredLanguage;
+  preferredTime?: PreferredTimeSlot;
+  clusterCode?: ClusterCode;
   paymentProvider?: PaymentProvider;
   createdAt: string;
 };
@@ -37,6 +46,7 @@ export type Cohort = {
   id: string;
   courseId: string;
   number: number;
+  clusterCode?: ClusterCode;
   studentIds: string[]; // enrollment ids
   tutorEmail?: string;
   completed: boolean;
@@ -172,6 +182,9 @@ type EnrollmentRow = {
   payment_status?: "pending" | "skipped" | "paid" | null;
   country?: string | null;
   language?: Lang | null;
+  preferred_language?: PreferredLanguage | null;
+  preferred_time?: PreferredTimeSlot | null;
+  cluster_code?: ClusterCode | null;
   payment_provider?: PaymentProvider | null;
   created_at?: string | null;
 };
@@ -180,6 +193,7 @@ type CohortRow = {
   id: string;
   course_id: string;
   number: number;
+  cluster_code?: ClusterCode | null;
   tutor_email?: string | null;
   completed?: boolean | null;
 };
@@ -262,6 +276,9 @@ function mapEnrollmentRow(row: EnrollmentRow): Enrollment {
     paymentStatus: row.payment_status ?? "skipped",
     country: row.country ?? undefined,
     language: row.language ?? undefined,
+    preferredLanguage: row.preferred_language ?? row.language ?? undefined,
+    preferredTime: row.preferred_time ?? undefined,
+    clusterCode: row.cluster_code ?? resolveRegionalCluster(row.country).code,
     paymentProvider: row.payment_provider ?? undefined,
     createdAt: row.created_at ?? new Date().toISOString(),
   };
@@ -327,7 +344,7 @@ const dict: Record<string, { en: string; fr: string }> = {
   "auth.submit.busy": { en: "Please wait…", fr: "Veuillez patienter…" },
   "auth.submit.signin": { en: "Sign In", fr: "Connexion" },
   "auth.submit.signup": { en: "Sign Up", fr: "Créer un compte" },
-  "auth.switch.new": { en: "New to Serenog?", fr: "Nouveau sur Serenog ?" },
+  "auth.switch.new": { en: "New to Serencog?", fr: "Nouveau sur Serencog ?" },
   "auth.switch.existing": { en: "Already have an account?", fr: "Vous avez déjà un compte ?" },
   "auth.switch.create": { en: "Create account", fr: "Créer un compte" },
   "auth.switch.signin": { en: "Sign in", fr: "Se connecter" },
@@ -364,8 +381,8 @@ const dict: Record<string, { en: string; fr: string }> = {
 
   "reviews.title": { en: "What learners say", fr: "Ce que disent les apprenants" },
   "reviews.subtitle": {
-    en: "A quick look at the experience students and professionals have after joining Serenog.",
-    fr: "Un aperçu de l'expérience vécue par les étudiants et professionnels après avoir rejoint Serenog.",
+    en: "A quick look at the experience students and professionals have after joining Serencog.",
+    fr: "Un aperçu de l'expérience vécue par les étudiants et professionnels après avoir rejoint Serencog.",
   },
   "reviews.signin": { en: "Sign in to leave a review", fr: "Connectez-vous pour laisser un avis" },
   "reviews.formTitle": { en: "Leave a review", fr: "Laisser un avis" },
@@ -514,6 +531,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         id: row.id,
         courseId: row.course_id,
         number: row.number,
+        clusterCode: row.cluster_code ?? undefined,
         tutorEmail: row.tutor_email ?? undefined,
         completed: !!row.completed,
         studentIds: mappedEnrollments
@@ -601,7 +619,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const enroll: AppCtx["enroll"] = async (input) => {
     const course = courses.find((c) => c.id === input.courseId);
     const size = Math.min(10, Math.max(5, course?.cohortSize ?? 8));
-    const courseCohorts = cohorts.filter((c) => c.courseId === input.courseId && !c.completed);
+    const clusterCode = input.clusterCode ?? resolveRegionalCluster(input.country).code;
+    const courseCohorts = cohorts.filter((c) => c.courseId === input.courseId && c.clusterCode === clusterCode && !c.completed);
     let target = courseCohorts.find((c) => c.studentIds.length < size);
     let newCohorts = cohorts;
     if (!target) {
@@ -609,6 +628,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         id: crypto.randomUUID(),
         courseId: input.courseId,
         number: courseCohorts.length + 1,
+        clusterCode,
         studentIds: [],
         completed: false,
       };
@@ -617,11 +637,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         id: target.id,
         course_id: target.courseId,
         number: target.number,
+        cluster_code: target.clusterCode,
         completed: false,
       });
     }
     const enrollment: Enrollment = {
       ...input,
+      clusterCode,
       id: crypto.randomUUID(),
       cohortId: target.id,
       createdAt: new Date().toISOString(),
@@ -641,6 +663,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       payment_status: enrollment.paymentStatus ?? "skipped",
       country: enrollment.country,
       language: enrollment.language,
+      preferred_language: enrollment.preferredLanguage,
+      preferred_time: enrollment.preferredTime,
+      cluster_code: enrollment.clusterCode ?? clusterCode,
       payment_provider: enrollment.paymentProvider,
       created_at: enrollment.createdAt,
     });

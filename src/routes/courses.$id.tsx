@@ -13,7 +13,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/courses/$id")({
-  head: () => ({ meta: [{ title: "Course details - Serenog" }] }),
+  head: () => ({ meta: [{ title: "Course details - Serencog Technologies" }] }),
   component: CourseDetail,
 });
 

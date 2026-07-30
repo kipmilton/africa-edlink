@@ -81,14 +81,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Serenog — Bilingual Tech Education for Africa" },
+      { title: "Serencog Technologies — Bilingual Tech Education for Africa" },
       { name: "description", content: "Pan-African EdTech platform delivering Full Stack, AI, ML, Data Science and Cybersecurity tracks in English and French." },
-      { name: "author", content: "Serenog" },
-      { property: "og:title", content: "Serenog" },
+      { name: "author", content: "Serencog Technologies" },
+      { property: "og:title", content: "Serencog Technologies" },
       { property: "og:description", content: "Bilingual tech education for West, Central and East Africa." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Serenog" },
+      { name: "twitter:site", content: "@Serencog" },
     ],
     links: [
       {

@@ -1,6 +1,6 @@
 <!-- SERENOG:BEGIN -->
 > [!IMPORTANT]
-> This project is maintained as a Serenog workspace. Avoid rewriting
+> This project is maintained as a Serencog workspace. Avoid rewriting
 > published git history — force pushing, or rebasing/amending/squashing commits
 > that are already pushed — as it can make history difficult to recover.
 >

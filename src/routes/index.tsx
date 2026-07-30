@@ -31,7 +31,7 @@ export const Route = createFileRoute("/")({
     meta: [
       {
         title:
-          "Serenog — Bilingual Tech Education for Africa",
+          "Serencog Technologies — Bilingual Tech Education for Africa",
       },
       {
         name: "description",
@@ -40,7 +40,7 @@ export const Route = createFileRoute("/")({
       },
       {
         property: "og:title",
-        content: "Serenog",
+        content: "Serencog Technologies",
       },
       {
         property: "og:description",
@@ -72,7 +72,7 @@ function HeroImage() {
     <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl">
       <img
         src={heroImg}
-        alt="Serenog campus and learning environment"
+        alt="Serencog campus and learning environment"
         className="h-full w-full object-cover"
       />
     </div>
@@ -106,7 +106,7 @@ const initialReviews: Review[] = [
     name: "Mireille Nikiema",
     role: "Product Designer",
     comment:
-      "Serenog helped me bridge the gap between creative thinking and technical execution in a way that felt practical and human.",
+      "Serencog helped me bridge the gap between creative thinking and technical execution in a way that felt practical and human.",
   },
 ];
 

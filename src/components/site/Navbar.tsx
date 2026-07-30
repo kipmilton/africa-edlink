@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Globe, Menu, X, ChevronDown, LogOut, User as UserIcon } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+import logo from "@/assets/logo.jpeg";
 import { useApp } from "@/lib/app-context";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -106,14 +107,13 @@ export function Navbar() {
     <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-white/95 backdrop-blur supports-backdrop-filter:bg-white/80">
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:px-6 lg:px-8">
         {/* Logo */}
-        <Link to="/" className="flex shrink-0 items-center gap-2.5">
-          <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground font-heading text-lg font-extrabold leading-none tracking-tight">
-            S
-          </div>
-          <span className="font-heading text-lg font-extrabold tracking-tight text-foreground">
-            Serenog
-          </span>
-        </Link>
+        <Link to="/" className="flex shrink-0 items-center">
+  <img 
+    src={logo} 
+    alt="Serencog Technologies logo" 
+    className="h-14 w-40 rounded-xl object-contain sm:h-16 sm:w-52" 
+  />
+</Link>   
 
         {/* Desktop nav */}
         <nav className="ml-10 hidden flex-1 items-center gap-0.5 md:flex">

@@ -7,14 +7,14 @@ import { Target, Eye, Check, GraduationCap } from "lucide-react";
 export const Route = createFileRoute("/about")({
   head: () => ({
     meta: [
-      { title: "About — Serenog" },
+      { title: "About — Serencog Technologies" },
       {
         name: "description",
         content: "Pan-African EdTech institution: bilingual, project-based, cohort-driven.",
       },
       {
         property: "og:title",
-        content: "About Serenog",
+        content: "About Serencog Technologies",
       },
       {
         property: "og:description",
@@ -76,8 +76,8 @@ function AboutPage() {
           <div>
             <h2 className="font-heading text-2xl font-bold text-foreground sm:text-3xl">
               {lang === "en"
-                ? "Why Serenog?"
-                : "Pourquoi Serenog ?"}
+                ? "Why Serencog?"
+                : "Pourquoi Serencog ?"}
             </h2>
             <p className="mt-3 text-muted-foreground">
               {lang === "en"

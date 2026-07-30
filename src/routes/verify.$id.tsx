@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ShieldCheck, Award } from "lucide-react";
 
 export const Route = createFileRoute("/verify/$id")({
-  head: () => ({ meta: [{ title: "Verify Certificate — Serenog" }] }),
+  head: () => ({ meta: [{ title: "Verify Certificate — Serencog Technologies" }] }),
   component: VerifyPage,
 });
 
@@ -19,7 +19,7 @@ function VerifyPage() {
     <div className="min-h-screen bg-linear-to-br from-primary/5 via-background to-accent/5">
       <header className="border-b bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
-          <Link to="/" className="font-heading text-xl font-extrabold">Serenog</Link>
+          <Link to="/" className="font-heading text-xl font-extrabold">Serencog</Link>
           <p className="text-xs text-muted-foreground uppercase tracking-wide">Credential Verification</p>
         </div>
       </header>
@@ -59,7 +59,7 @@ function VerifyPage() {
 
       <footer className="border-t bg-white">
         <div className="mx-auto max-w-5xl px-4 py-6 text-center text-xs text-muted-foreground">
-          © {new Date().getFullYear()} Serenog · Bilingual Tech Education for Africa
+          © {new Date().getFullYear()} Serencog Technologies · Bilingual Tech Education for Africa
         </div>
       </footer>
     </div>

@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import logo from "@/assets/logo.jpeg";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -59,8 +60,12 @@ function AuthPage() {
   return (
     <div className="min-h-[calc(100vh-4rem)] grid place-items-center bg-linear-to-br from-primary/5 via-background to-accent/5 px-4 py-16">
       <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-xl">
-        <Link to="/" className="mb-6 block text-center font-heading text-2xl font-extrabold text-foreground">
-          Serenog
+        <Link to="/" className="mb-6 flex items-center justify-center">
+          <img
+            src={logo}
+            alt="Serencog Technologies logo"
+            className="h-16 w-auto max-w-full rounded-2xl object-contain shadow-sm sm:h-20"
+          />
         </Link>
         <h1 className="mb-1 text-center text-2xl font-bold text-foreground">
           {mode === "signin" ? t("auth.title.signin") : t("auth.title.signup")}

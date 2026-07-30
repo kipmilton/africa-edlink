@@ -162,10 +162,11 @@ create table if not exists public.cohorts (
   id uuid primary key default gen_random_uuid(),
   course_id text not null references public.courses(slug) on delete cascade,
   number integer not null,
+  cluster_code text not null default 'EAST_ANG' check (cluster_code in ('EAST_ANG', 'WEST_ANG', 'WEST_FRA', 'SOUTH_ANG')),
   tutor_email text,
   completed boolean not null default false,
   created_at timestamptz not null default now(),
-  unique (course_id, number)
+  unique (course_id, cluster_code, number)
 );
 
 grant select on public.cohorts to authenticated;
@@ -187,7 +188,8 @@ create policy "Admins update cohorts" on public.cohorts
   using (public.has_role(auth.uid(), 'admin'))
   with check (public.has_role(auth.uid(), 'admin'));
 
--- Student enrollment applications. Payment is intentionally skipped until gateways are ready.
+-- Student enrollment applications. Payment is initialized through regional gateway routing,
+-- with sandbox/mock fallbacks until production gateway accounts are ready.
 create table if not exists public.enrollments (
   id uuid primary key default gen_random_uuid(),
   course_id text not null references public.courses(slug) on delete restrict,
@@ -203,7 +205,11 @@ create table if not exists public.enrollments (
   payment_status text not null default 'skipped' check (payment_status in ('pending', 'skipped', 'paid')),
   country text,
   language text check (language in ('en', 'fr')),
-  payment_provider text check (payment_provider in ('paystack', 'flutterwave', 'cinetpay')),
+  preferred_language text check (preferred_language in ('en', 'fr')),
+  preferred_time text check (preferred_time in ('7-9', '9-11', '11-1', '2-4', '4-5', '5-7')),
+  cluster_code text not null default 'EAST_ANG' check (cluster_code in ('EAST_ANG', 'WEST_ANG', 'WEST_FRA', 'SOUTH_ANG')),
+  payment_provider text check (payment_provider in ('paystack', 'flutterwave', 'seerbit')),
+  transaction_reference text,
   created_at timestamptz not null default now()
 );
 
@@ -221,8 +227,78 @@ alter table public.enrollments add column if not exists payment_currency text;
 alter table public.enrollments add column if not exists payment_status text default 'skipped';
 alter table public.enrollments add column if not exists country text;
 alter table public.enrollments add column if not exists language text;
+alter table public.enrollments add column if not exists preferred_language text;
+alter table public.enrollments add column if not exists preferred_time text;
+alter table public.enrollments add column if not exists cluster_code text not null default 'EAST_ANG';
 alter table public.enrollments add column if not exists payment_provider text;
+alter table public.enrollments add column if not exists transaction_reference text;
 alter table public.enrollments add column if not exists created_at timestamptz not null default now();
+alter table public.cohorts add column if not exists cluster_code text not null default 'EAST_ANG';
+alter table public.cohorts drop constraint if exists cohorts_course_id_number_key;
+alter table public.cohorts drop constraint if exists cohorts_course_id_cluster_code_number_key;
+alter table public.cohorts add constraint cohorts_course_id_cluster_code_number_key unique (course_id, cluster_code, number);
+alter table public.cohorts drop constraint if exists cohorts_cluster_code_check;
+alter table public.cohorts add constraint cohorts_cluster_code_check
+  check (cluster_code in ('EAST_ANG', 'WEST_ANG', 'WEST_FRA', 'SOUTH_ANG'));
+alter table public.enrollments drop constraint if exists enrollments_cluster_code_check;
+alter table public.enrollments add constraint enrollments_cluster_code_check
+  check (cluster_code in ('EAST_ANG', 'WEST_ANG', 'WEST_FRA', 'SOUTH_ANG'));
+alter table public.enrollments drop constraint if exists enrollments_preferred_language_check;
+alter table public.enrollments add constraint enrollments_preferred_language_check
+  check (preferred_language is null or preferred_language in ('en', 'fr'));
+alter table public.enrollments drop constraint if exists enrollments_preferred_time_check;
+alter table public.enrollments add constraint enrollments_preferred_time_check
+  check (preferred_time is null or preferred_time in ('7-9', '9-11', '11-1', '2-4', '4-5', '5-7'));
+alter table public.enrollments drop constraint if exists enrollments_payment_provider_check;
+alter table public.enrollments add constraint enrollments_payment_provider_check
+  check (payment_provider is null or payment_provider in ('paystack', 'flutterwave', 'seerbit'));
+
+create table if not exists public.enrollment_drafts (
+  id uuid primary key default gen_random_uuid(),
+  course_id text not null references public.courses(slug) on delete restrict,
+  student_email text not null,
+  student_data jsonb not null default '{}'::jsonb,
+  country_code text not null,
+  cluster_code text,
+  preferred_language text check (preferred_language is null or preferred_language in ('en', 'fr')),
+  preferred_time text check (preferred_time is null or preferred_time in ('7-9', '9-11', '11-1', '2-4', '4-5', '5-7')),
+  payment_provider text not null check (payment_provider in ('paystack', 'flutterwave', 'seerbit')),
+  payment_amount numeric not null,
+  payment_currency text not null,
+  transaction_reference text not null unique,
+  payment_status text not null default 'pending' check (payment_status in ('pending', 'paid', 'failed')),
+  created_at timestamptz not null default now()
+);
+
+alter table public.enrollment_drafts add column if not exists cluster_code text;
+alter table public.enrollment_drafts add column if not exists preferred_language text;
+alter table public.enrollment_drafts add column if not exists preferred_time text;
+alter table public.enrollment_drafts drop constraint if exists enrollment_drafts_cluster_code_check;
+alter table public.enrollment_drafts add constraint enrollment_drafts_cluster_code_check
+  check (cluster_code is null or cluster_code in ('EAST_ANG', 'WEST_ANG', 'WEST_FRA', 'SOUTH_ANG'));
+alter table public.enrollment_drafts drop constraint if exists enrollment_drafts_preferred_language_check;
+alter table public.enrollment_drafts add constraint enrollment_drafts_preferred_language_check
+  check (preferred_language is null or preferred_language in ('en', 'fr'));
+alter table public.enrollment_drafts drop constraint if exists enrollment_drafts_preferred_time_check;
+alter table public.enrollment_drafts add constraint enrollment_drafts_preferred_time_check
+  check (preferred_time is null or preferred_time in ('7-9', '9-11', '11-1', '2-4', '4-5', '5-7'));
+
+grant select, insert, update on public.enrollment_drafts to authenticated;
+grant all on public.enrollment_drafts to service_role;
+alter table public.enrollment_drafts enable row level security;
+
+drop policy if exists "Users read own enrollment drafts" on public.enrollment_drafts;
+create policy "Users read own enrollment drafts" on public.enrollment_drafts
+  for select to authenticated
+  using (
+    public.has_role(auth.uid(), 'admin')
+    or lower(student_email) = lower(auth.jwt()->>'email')
+  );
+
+drop policy if exists "Users create own enrollment drafts" on public.enrollment_drafts;
+create policy "Users create own enrollment drafts" on public.enrollment_drafts
+  for insert to authenticated
+  with check (lower(student_email) = lower(auth.jwt()->>'email'));
 
 grant select, insert on public.enrollments to authenticated;
 grant all on public.enrollments to service_role;
@@ -272,3 +348,4 @@ on conflict (slug) do update set
 alter publication supabase_realtime add table public.courses;
 alter publication supabase_realtime add table public.cohorts;
 alter publication supabase_realtime add table public.enrollments;
+alter publication supabase_realtime add table public.enrollment_drafts;

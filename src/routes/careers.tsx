@@ -28,20 +28,20 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/careers")({
   head: () => ({
     meta: [
-      { title: "Careers — Serenog" },
+      { title: "Careers — Serencog Technologies" },
       {
         name: "description",
         content:
-          "Join our faculty as a tutor. Apply to teach at Serenog and shape the next generation of African tech talent.",
+          "Join our faculty as a tutor. Apply to teach at Serencog and shape the next generation of African tech talent.",
       },
       {
         property: "og:title",
-        content: "Careers — Serenog",
+        content: "Careers — Serencog Technologies",
       },
       {
         property: "og:description",
         content:
-          "Apply to teach, mentor, and build with Serenog.",
+          "Apply to teach, mentor, and build with Serencog.",
       },
     ],
   }),
@@ -442,8 +442,8 @@ function CareersPage() {
                   rows={4}
                   required
                   placeholder={T(
-                    "Tell us about your background, teaching approach, and why you want to join Serenog...",
-                    "Parlez-nous de votre parcours, de votre approche pédagogique et de pourquoi vous souhaitez rejoindre Serenog...",
+                    "Tell us about your background, teaching approach, and why you want to join Serencog...",
+                    "Parlez-nous de votre parcours, de votre approche pédagogique et de pourquoi vous souhaitez rejoindre Serencog...",
                   )}
                 />
               </div>

@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/courses")({
   head: () => ({
     meta: [
-      { title: "Courses — Serenog" },
+      { title: "Courses — Serencog Technologies" },
       {
         name: "description",
         content:
@@ -18,7 +18,7 @@ export const Route = createFileRoute("/courses")({
       },
       {
         property: "og:title",
-        content: "Courses — Serenog",
+        content: "Courses — Serencog Technologies",
       },
       {
         property: "og:description",

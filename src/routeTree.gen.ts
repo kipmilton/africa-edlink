@@ -21,6 +21,8 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as VerifyIdRouteImport } from './routes/verify.$id'
 import { Route as EnrollIdRouteImport } from './routes/enroll.$id'
 import { Route as CoursesIdRouteImport } from './routes/courses.$id'
+import { Route as ApiPaymentsVerifyRouteImport } from './routes/api.payments.verify'
+import { Route as ApiPaymentsInitializeRouteImport } from './routes/api.payments.initialize'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -82,6 +84,16 @@ const CoursesIdRoute = CoursesIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => CoursesRoute,
 } as any)
+const ApiPaymentsVerifyRoute = ApiPaymentsVerifyRouteImport.update({
+  id: '/api/payments/verify',
+  path: '/api/payments/verify',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPaymentsInitializeRoute = ApiPaymentsInitializeRouteImport.update({
+  id: '/api/payments/initialize',
+  path: '/api/payments/initialize',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -96,6 +108,8 @@ export interface FileRoutesByFullPath {
   '/courses/$id': typeof CoursesIdRoute
   '/enroll/$id': typeof EnrollIdRoute
   '/verify/$id': typeof VerifyIdRoute
+  '/api/payments/initialize': typeof ApiPaymentsInitializeRoute
+  '/api/payments/verify': typeof ApiPaymentsVerifyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -110,6 +124,8 @@ export interface FileRoutesByTo {
   '/courses/$id': typeof CoursesIdRoute
   '/enroll/$id': typeof EnrollIdRoute
   '/verify/$id': typeof VerifyIdRoute
+  '/api/payments/initialize': typeof ApiPaymentsInitializeRoute
+  '/api/payments/verify': typeof ApiPaymentsVerifyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -125,6 +141,8 @@ export interface FileRoutesById {
   '/courses/$id': typeof CoursesIdRoute
   '/enroll/$id': typeof EnrollIdRoute
   '/verify/$id': typeof VerifyIdRoute
+  '/api/payments/initialize': typeof ApiPaymentsInitializeRoute
+  '/api/payments/verify': typeof ApiPaymentsVerifyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -141,6 +159,8 @@ export interface FileRouteTypes {
     | '/courses/$id'
     | '/enroll/$id'
     | '/verify/$id'
+    | '/api/payments/initialize'
+    | '/api/payments/verify'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -155,6 +175,8 @@ export interface FileRouteTypes {
     | '/courses/$id'
     | '/enroll/$id'
     | '/verify/$id'
+    | '/api/payments/initialize'
+    | '/api/payments/verify'
   id:
     | '__root__'
     | '/'
@@ -169,6 +191,8 @@ export interface FileRouteTypes {
     | '/courses/$id'
     | '/enroll/$id'
     | '/verify/$id'
+    | '/api/payments/initialize'
+    | '/api/payments/verify'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -183,6 +207,8 @@ export interface RootRouteChildren {
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   EnrollIdRoute: typeof EnrollIdRoute
   VerifyIdRoute: typeof VerifyIdRoute
+  ApiPaymentsInitializeRoute: typeof ApiPaymentsInitializeRoute
+  ApiPaymentsVerifyRoute: typeof ApiPaymentsVerifyRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -271,6 +297,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CoursesIdRouteImport
       parentRoute: typeof CoursesRoute
     }
+    '/api/payments/verify': {
+      id: '/api/payments/verify'
+      path: '/api/payments/verify'
+      fullPath: '/api/payments/verify'
+      preLoaderRoute: typeof ApiPaymentsVerifyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/payments/initialize': {
+      id: '/api/payments/initialize'
+      path: '/api/payments/initialize'
+      fullPath: '/api/payments/initialize'
+      preLoaderRoute: typeof ApiPaymentsInitializeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -297,6 +337,8 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   EnrollIdRoute: EnrollIdRoute,
   VerifyIdRoute: VerifyIdRoute,
+  ApiPaymentsInitializeRoute: ApiPaymentsInitializeRoute,
+  ApiPaymentsVerifyRoute: ApiPaymentsVerifyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

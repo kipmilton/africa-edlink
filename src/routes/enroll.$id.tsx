@@ -4,17 +4,38 @@ import { useApp } from "@/lib/app-context";
 import { useAuth } from "@/lib/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { COUNTRY_OPTIONS, convertUSDToCurrency, formatPrice, type PaymentProvider } from "@/lib/currency";
+import { providerLabel, resolvePaymentRoute, type PaymentInitializationResult } from "@/lib/payment-router";
+import {
+  PREFERRED_TIME_OPTIONS,
+  clusterLabel,
+  clusterTimezone,
+  resolveRegionalCluster,
+  type PreferredLanguage,
+  type PreferredTimeSlot,
+} from "@/lib/regional-clusters";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
+function loadCheckoutScript(id: string, src: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (document.getElementById(id)) return resolve(true);
+    const script = document.createElement("script");
+    script.id = id;
+    script.src = src;
+    script.async = true;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.head.appendChild(script);
+  });
+}
+
 export const Route = createFileRoute("/enroll/$id")({
-  head: () => ({ meta: [{ title: "Enroll — Serenog" }] }),
+  head: () => ({ meta: [{ title: "Enroll — Serencog Technologies" }] }),
   component: EnrollPage,
 });
 
@@ -35,14 +56,18 @@ function EnrollPage() {
   const [education, setEducation] = useState("Bachelor's Degree");
   const [heard, setHeard] = useState("Google Search");
   const [country, setCountry] = useState(detectedCountry || "");
+  const [preferredTime, setPreferredTime] = useState<PreferredTimeSlot>("5-7");
+  const [preferredLanguage, setPreferredLanguage] = useState<PreferredLanguage>("en");
   const [payOption, setPayOption] = useState<"full" | "partial">("full");
   const [partialAmount, setPartialAmount] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [showPaid, setShowPaid] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const selectedCountry = useMemo(() => COUNTRY_OPTIONS.find((item) => item.name === country || item.code === country), [country]);
   const selectedLanguage = selectedCountry?.language ?? lang;
-  const selectedCurrency = selectedCountry?.currency ?? currency;
-  const selectedPaymentProvider = (selectedCountry?.paymentProvider ?? "flutterwave") as PaymentProvider;
+  const paymentRoute = useMemo(() => resolvePaymentRoute(selectedCountry?.code ?? country), [selectedCountry?.code, country]);
+  const selectedCluster = useMemo(() => resolveRegionalCluster(selectedCountry?.code ?? country), [selectedCountry?.code, country]);
+  const selectedCurrency = paymentRoute.currency ?? currency;
+  const selectedPaymentProvider = paymentRoute.provider as PaymentProvider;
   const minimumPartialAmount = convertUSDToCurrency(10, selectedCurrency);
   const fullAmount = convertUSDToCurrency(course?.basePriceUSD ?? 0, selectedCurrency);
 
@@ -51,6 +76,10 @@ function EnrollPage() {
       setLang(selectedLanguage, { persist: false });
     }
   }, [selectedCountry, selectedLanguage, lang, setLang]);
+
+  useEffect(() => {
+    setPreferredLanguage(selectedCluster.language);
+  }, [selectedCluster.language]);
 
   if (!course) {
     return (
@@ -62,7 +91,7 @@ function EnrollPage() {
   }
 
   const nextCohortNumber = (() => {
-    const active = cohorts.filter((c) => c.courseId === course.id && !c.completed);
+    const active = cohorts.filter((c) => c.courseId === course.id && c.clusterCode === selectedCluster.code && !c.completed);
     const last = active[active.length - 1];
     if (!last || last.studentIds.length >= course.cohortSize) return (active.length || 0) + 1;
     return last.number;
@@ -93,9 +122,7 @@ function EnrollPage() {
     toast.success("Account created — check your email to confirm, then sign in.");
   };
 
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!user) return toast.error("Sign in above to continue");
+  const getAmountToRecord = () => {
     const amountToRecord = payOption === "full" ? fullAmount : Number(partialAmount);
     if (payOption === "partial") {
       if (!Number.isFinite(amountToRecord)) return toast.error("Enter a valid partial payment amount");
@@ -106,25 +133,164 @@ function EnrollPage() {
         return toast.error("Partial amount cannot be more than the full tuition amount");
       }
     }
+    return amountToRecord;
+  };
+
+  const finalizeEnrollment = async (transactionReference: string) => {
+    const amountToRecord = getAmountToRecord();
+    if (typeof amountToRecord !== "number") return;
+    setVerifying(true);
+    try {
+      const verifyResponse = await fetch("/api/payments/verify", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          transactionReference,
+          provider: selectedPaymentProvider,
+          courseId: course.id,
+          expectedAmount: amountToRecord,
+          currency: selectedCurrency,
+          studentData: {
+            fullName,
+            email: user?.email ?? email,
+            phone,
+            education,
+            heardFrom: heard,
+            country: selectedCountry?.name ?? country,
+            language: selectedCountry?.language ?? lang,
+            preferredLanguage,
+            preferredTime,
+            clusterCode: selectedCluster.code,
+            paymentOption: payOption,
+          },
+        }),
+      });
+      const verification = (await verifyResponse.json()) as { success?: boolean; cohortId?: string };
+      if (!verifyResponse.ok || !verification.success) {
+        toast.error("Payment could not be verified. Please try again.");
+        return;
+      }
+      if (!verification.cohortId) {
+        await enroll({
+          courseId: course.id,
+          studentEmail: user?.email ?? email,
+          fullName,
+          phone,
+          education,
+          heardFrom: heard,
+          paymentOption: payOption,
+          paymentAmount: amountToRecord,
+          paymentCurrency: selectedCurrency,
+          paymentStatus: "paid",
+          country: selectedCountry?.name ?? country,
+          language: selectedCountry?.language ?? lang,
+          preferredLanguage,
+          preferredTime,
+          clusterCode: selectedCluster.code,
+          paymentProvider: selectedPaymentProvider,
+        });
+      }
+      toast.success(`Enrollment paid via ${providerLabel(selectedPaymentProvider)}`);
+      navigate({ to: "/dashboard" });
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const openCheckout = async (init: PaymentInitializationResult) => {
+    if (init.mock) {
+      await finalizeEnrollment(init.reference);
+      return;
+    }
+
+    if (init.provider === "paystack") {
+      const loaded = await loadCheckoutScript("paystack-inline-js", "https://js.paystack.co/v2/inline.js");
+      const paystack = (window as unknown as { PaystackPop?: { setup?: (config: Record<string, unknown>) => { openIframe: () => void }; resumeTransaction?: (accessCode: string) => void } }).PaystackPop;
+      if (!loaded || !paystack) return finalizeEnrollment(init.reference);
+      if (init.accessCode && paystack.resumeTransaction) {
+        paystack.resumeTransaction(init.accessCode);
+        return;
+      }
+      paystack.setup?.({
+        key: init.publicKey,
+        email: user?.email ?? email,
+        amount: Math.round(init.amount * 100),
+        currency: init.currency,
+        ref: init.reference,
+        onSuccess: () => finalizeEnrollment(init.reference),
+        onCancel: () => toast.info("Payment window closed."),
+      })?.openIframe();
+      return;
+    }
+
+    if (init.provider === "seerbit") {
+      const loaded = await loadCheckoutScript("seerbit-inline-js", "https://checkout.seerbitapi.com/api/v2/seerbit.js");
+      const seerbit = (window as unknown as { SeerbitPay?: (config: Record<string, unknown>, callback: () => void) => void }).SeerbitPay;
+      if (!loaded || !seerbit) return finalizeEnrollment(init.reference);
+      seerbit({
+        public_key: init.publicKey,
+        tranref: init.tranref ?? init.reference,
+        amount: init.amount,
+        currency: init.currency,
+        email: user?.email ?? email,
+        full_name: fullName,
+      }, () => finalizeEnrollment(init.tranref ?? init.reference));
+      return;
+    }
+
+    const loaded = await loadCheckoutScript("flutterwave-inline-js", "https://checkout.flutterwave.com/v3.js");
+    const flutterwave = (window as unknown as { FlutterwaveCheckout?: (config: Record<string, unknown>) => void }).FlutterwaveCheckout;
+    if (!loaded || !flutterwave) return finalizeEnrollment(init.reference);
+    flutterwave({
+      public_key: init.publicKey,
+      tx_ref: init.reference,
+      amount: init.amount,
+      currency: init.currency,
+      customer: { email: user?.email ?? email, phone_number: phone, name: fullName },
+      customizations: { title: "Serencog Enrollment", description: course.title.en },
+      callback: (response: { transaction_id?: string; tx_ref?: string }) => finalizeEnrollment(String(response.transaction_id ?? response.tx_ref ?? init.reference)),
+      onclose: () => toast.info("Payment window closed."),
+    });
+  };
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!user) return toast.error("Sign in above to continue");
+    const amountToRecord = getAmountToRecord();
+    if (typeof amountToRecord !== "number") return;
 
     setSubmitting(true);
     try {
-      await enroll({
-      courseId: course.id,
-      studentEmail: user.email,
-      fullName,
-      phone,
-      education,
-      heardFrom: heard,
-      paymentOption: payOption,
-      paymentAmount: amountToRecord,
-      paymentCurrency: selectedCurrency,
-      paymentStatus: "skipped",
-      country: selectedCountry?.name ?? country,
-      language: selectedCountry?.language ?? lang,
-      paymentProvider: selectedCountry?.paymentProvider ?? selectedPaymentProvider,
+      const response = await fetch("/api/payments/initialize", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          studentData: {
+            fullName,
+            email: user.email,
+            phone,
+            education,
+            heardFrom: heard,
+            country: selectedCountry?.name ?? country,
+            language: selectedCountry?.language ?? lang,
+            preferredLanguage,
+            preferredTime,
+            clusterCode: selectedCluster.code,
+            paymentOption: payOption,
+          },
+          courseId: course.id,
+          courseTitle: course.title.en,
+          countryCode: selectedCountry?.code ?? country,
+          amount: amountToRecord,
+          currency: selectedCurrency,
+          paymentOption: payOption,
+        }),
       });
-      setShowPaid(true);
+      if (!response.ok) throw new Error("Payment initialization failed");
+      const init = (await response.json()) as PaymentInitializationResult;
+      await openCheckout(init);
+    } catch {
+      toast.error("Unable to start payment. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -163,7 +329,7 @@ function EnrollPage() {
 
         <Card className="p-6">
           <h2 className="text-xl font-bold">Enrollment Details for {course.title.en} · Cohort {nextCohortNumber}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Complete the form below. Payment gateway setup is currently skipped, so your enrollment will be submitted directly.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Complete the form below. We will route your payment automatically based on your selected country.</p>
 
           <form onSubmit={submit} className="mt-6 space-y-6">
             <fieldset className="grid gap-3">
@@ -185,6 +351,46 @@ function EnrollPage() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="min-h-[84px] rounded-lg border p-3 text-sm">
+                <div className="font-medium">Regional Cluster</div>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-primary px-2.5 py-1 text-xs font-bold text-primary-foreground">{selectedCluster.code}</span>
+                  <span className="text-muted-foreground">{clusterLabel(selectedCluster.code)} · {clusterTimezone(selectedCluster.code)}</span>
+                </div>
+              </div>
+              <div>
+                <Label>Preferred Language</Label>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {[
+                    { value: "en" as const, label: "English" },
+                    { value: "fr" as const, label: "French" },
+                  ].map((option) => (
+                    <Button
+                      key={option.value}
+                      type="button"
+                      variant={preferredLanguage === option.value ? "default" : "outline"}
+                      onClick={() => setPreferredLanguage(option.value)}
+                    >
+                      {option.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <Label>Preferred Live Class Time</Label>
+                <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {PREFERRED_TIME_OPTIONS.map((option) => (
+                    <Button
+                      key={option.value}
+                      type="button"
+                      variant={preferredTime === option.value ? "default" : "outline"}
+                      onClick={() => setPreferredTime(option.value)}
+                    >
+                      {option.label}
+                    </Button>
+                  ))}
+                </div>
               </div>
               <div>
                 <Label>Education Level</Label>
@@ -215,11 +421,18 @@ function EnrollPage() {
               <div className="grid gap-2 rounded-lg border p-3 text-sm">
                 <div className="font-medium">Country: <span className="text-muted-foreground">{selectedCountry?.name || "—"}</span></div>
                 <div className="font-medium">Language: <span className="text-muted-foreground">{selectedLanguage === "fr" ? "French" : "English"}</span></div>
-                <div className="font-medium">Payment Method: <span className="text-muted-foreground">{selectedPaymentProvider === "paystack" ? "Paystack" : selectedPaymentProvider === "flutterwave" ? "Flutterwave" : "CinetPay"}</span></div>
+                <div className="font-medium">Cohort Cluster: <span className="text-muted-foreground">{selectedCluster.code} · {clusterLabel(selectedCluster.code)}</span></div>
+                <div className="font-medium">Preferred Schedule: <span className="text-muted-foreground">{preferredTime} · {preferredLanguage === "fr" ? "French" : "English"}</span></div>
+                <div className="font-medium">Payment Gateway: <span className="text-muted-foreground">{paymentRoute.providerName} ({selectedCurrency} {Math.round(payOption === "full" ? fullAmount : Number(partialAmount || 0)).toLocaleString()})</span></div>
               </div>
-              <div className="rounded-lg border p-3 text-sm text-muted-foreground">
-                <div className="font-medium text-foreground">Selected payment summary</div>
-                <div className="mt-1">Gateway collection is temporarily skipped. Your enrollment will still be submitted for admin review and tutor assignment.</div>
+              <div className="flex items-center gap-3 rounded-lg border p-3 text-sm">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary text-xs font-black text-primary-foreground">
+                  {paymentRoute.logoText}
+                </div>
+                <div>
+                  <div className="font-medium text-foreground">Paying securely via {paymentRoute.providerName} [Test Mode]</div>
+                  <div className="text-muted-foreground">Sandbox and local mock fallbacks are enabled until production gateway keys are ready.</div>
+                </div>
               </div>
               <label className="flex items-center gap-3 rounded-lg border p-3 cursor-pointer">
                 <input type="radio" checked={payOption === "full"} onChange={() => setPayOption("full")} />
@@ -253,24 +466,21 @@ function EnrollPage() {
             </fieldset>
 
             <Button type="submit" size="lg" className="w-full" disabled={!user || submitting}>
-              {submitting ? "Submitting..." : "Submit Enrollment"}
+              {submitting ? "Starting payment..." : "Proceed to Payment"}
             </Button>
-            {!user && <p className="text-center text-xs text-muted-foreground">Sign in above to submit enrollment.</p>}
+            {!user && <p className="text-center text-xs text-muted-foreground">Sign in above to continue to payment.</p>}
           </form>
         </Card>
 
-        <Dialog open={showPaid} onOpenChange={setShowPaid}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Enrollment Submitted</DialogTitle>
-              <DialogDescription>Your enrollment has been saved. You can now continue to your student dashboard.</DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowPaid(false)}>Close</Button>
-              <Button onClick={() => navigate({ to: "/dashboard" })}>Go to dashboard</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        {verifying && (
+          <div className="fixed inset-0 z-50 grid place-items-center bg-background/90 px-4">
+            <Card className="w-full max-w-sm p-6 text-center">
+              <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-muted border-t-primary" />
+              <h3 className="mt-4 text-lg font-bold">Verifying payment</h3>
+              <p className="mt-2 text-sm text-muted-foreground">Verifying payment and finalizing your enrollment...</p>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   );

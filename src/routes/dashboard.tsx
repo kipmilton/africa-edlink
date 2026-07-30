@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useApp, type LocalCourse, type Role, type Cohort } from "@/lib/app-context";
 import { useAuth } from "@/lib/use-auth";
 import { formatPrice } from "@/lib/currency";
+import { providerLabel } from "@/lib/payment-router";
+import { REGIONAL_CLUSTERS, clusterLabel, clusterTimezone } from "@/lib/regional-clusters";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,7 +26,7 @@ import {
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard")({
-  head: () => ({ meta: [{ title: "Dashboard — Serenog" }] }),
+  head: () => ({ meta: [{ title: "Dashboard — Serencog Technologies" }] }),
   component: DashboardPage,
 });
 
@@ -162,13 +164,19 @@ function StudentDash() {
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <h3 className="font-bold">{course.title.en}</h3>
-                  <p className="text-xs text-muted-foreground">Cohort {cohort.number}</p>
+                  <p className="text-xs text-muted-foreground">Cohort {cohort.number} [{cohort.clusterCode ?? e.clusterCode ?? "EAST_ANG"}]</p>
                 </div>
                 <Badge variant={cohort.completed ? "secondary" : "default"} className="rounded-full">
                   {cohort.completed ? "Completed" : "In progress"}
                 </Badge>
               </div>
               <p className="mt-3 text-sm text-muted-foreground">{course.desc.en}</p>
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                <Badge variant="outline">{clusterLabel(cohort.clusterCode ?? e.clusterCode)}</Badge>
+                <Badge variant="secondary">{clusterTimezone(cohort.clusterCode ?? e.clusterCode)}</Badge>
+                {e.preferredTime && <Badge variant="outline">{e.preferredTime}</Badge>}
+                <Badge variant="outline">{(e.preferredLanguage ?? e.language) === "fr" ? "French" : "English"}</Badge>
+              </div>
               <div className="mt-3 text-xs text-muted-foreground">Classmates: {cohort.studentIds.length}/{course.cohortSize}</div>
             </Card>
           );
@@ -244,12 +252,16 @@ function TutorDash() {
               <div className="flex items-start justify-between">
                 <div>
                   <h3 className="font-bold">{course?.title.en ?? "Course"}</h3>
-                  <p className="text-xs text-muted-foreground">Cohort {cohort.number} · {students.length} students</p>
+                  <p className="text-xs text-muted-foreground">Cohort {cohort.number} [{clusterLabel(cohort.clusterCode)}] · {students.length} students</p>
                 </div>
-                <Badge variant={cohort.completed ? "secondary" : "default"} className="rounded-full">
-                  {cohort.completed ? "Completed" : "Active"}
-                </Badge>
+                <div className="flex flex-col items-end gap-2">
+                  <Badge variant={cohort.completed ? "secondary" : "default"} className="rounded-full">
+                    {cohort.completed ? "Completed" : "Active"}
+                  </Badge>
+                  <Badge variant="outline">{cohort.clusterCode ?? "EAST_ANG"}</Badge>
+                </div>
               </div>
+              <p className="mt-2 text-xs text-muted-foreground">{clusterTimezone(cohort.clusterCode)} · {(students[0]?.preferredLanguage ?? students[0]?.language) === "fr" ? "French" : "English"}</p>
               <ul className="mt-3 space-y-1 text-sm">
                 {students.map((s) => (
                   <li key={s.id} className="flex items-center gap-2">
@@ -494,13 +506,13 @@ function AdminDash() {
 }
 
 function AdminEnrollmentsPanel() {
-  const { enrollments, courses } = useApp();
+  const { enrollments, courses, cohorts } = useApp();
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-bold">Enrollments</h3>
-          <p className="text-sm text-muted-foreground">Track each learner’s selected country, language and payment provider.</p>
+          <h3 className="text-lg font-bold">Active Student Enrollments</h3>
+          <p className="text-sm text-muted-foreground">Track each learner's cohort, payment gateway and paid enrollment status.</p>
         </div>
       </div>
       <Card className="overflow-hidden">
@@ -509,8 +521,11 @@ function AdminEnrollmentsPanel() {
             <TableRow>
               <TableHead>Student</TableHead>
               <TableHead>Course</TableHead>
+              <TableHead>Cohort</TableHead>
+              <TableHead>Cluster</TableHead>
               <TableHead>Country</TableHead>
               <TableHead>Language</TableHead>
+              <TableHead>Preferred Time</TableHead>
               <TableHead>Amount</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Payment Provider</TableHead>
@@ -519,7 +534,8 @@ function AdminEnrollmentsPanel() {
           <TableBody>
             {enrollments.map((entry) => {
               const course = courses.find((c) => c.id === entry.courseId);
-              const providerLabel = entry.paymentProvider === "paystack" ? "Paystack" : entry.paymentProvider === "flutterwave" ? "Flutterwave" : entry.paymentProvider === "cinetpay" ? "CinetPay" : "—";
+              const cohort = cohorts.find((c) => c.id === entry.cohortId);
+              const paymentProviderLabel = entry.paymentProvider ? providerLabel(entry.paymentProvider) : "—";
               return (
                 <TableRow key={entry.id}>
                   <TableCell>
@@ -527,11 +543,14 @@ function AdminEnrollmentsPanel() {
                     <div className="text-xs text-muted-foreground">{entry.studentEmail}</div>
                   </TableCell>
                   <TableCell>{course?.title.en ?? "Course"}</TableCell>
+                  <TableCell>{cohort ? <Badge variant="outline">Cohort {cohort.number}</Badge> : "—"}</TableCell>
+                  <TableCell><Badge variant="secondary">{entry.clusterCode ?? cohort?.clusterCode ?? "EAST_ANG"}</Badge></TableCell>
                   <TableCell>{entry.country || "—"}</TableCell>
-                  <TableCell>{entry.language === "fr" ? "French" : entry.language === "en" ? "English" : "—"}</TableCell>
+                  <TableCell>{(entry.preferredLanguage ?? entry.language) === "fr" ? "French" : (entry.preferredLanguage ?? entry.language) === "en" ? "English" : "—"}</TableCell>
+                  <TableCell>{entry.preferredTime ?? "—"}</TableCell>
                   <TableCell>{entry.paymentAmount && entry.paymentCurrency ? `${entry.paymentCurrency} ${entry.paymentAmount.toLocaleString()}` : "n/a"}</TableCell>
                   <TableCell><Badge variant="secondary" className="capitalize">{entry.paymentStatus ?? "skipped"}</Badge></TableCell>
-                  <TableCell>{providerLabel}</TableCell>
+                  <TableCell>{entry.paymentStatus === "paid" ? `Paid via ${paymentProviderLabel}` : paymentProviderLabel}</TableCell>
                 </TableRow>
               );
             })}
@@ -543,7 +562,7 @@ function AdminEnrollmentsPanel() {
 }
 
 function AdminCoursesPanel() {
-  const { courses, addCourse, updateCourse, currency } = useApp();
+  const { courses, addCourse, updateCourse, currency, enrollments } = useApp();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<LocalCourse | null>(null);
   return (
@@ -580,6 +599,13 @@ function AdminCoursesPanel() {
               <div className="mt-2 flex flex-wrap gap-2 text-xs">
                 <Badge variant="secondary">{formatPrice(c.basePriceUSD, currency)}</Badge>
                 <Badge variant="outline">Cohort size: {c.cohortSize}</Badge>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-1 text-xs">
+                {REGIONAL_CLUSTERS.map((cluster) => (
+                  <Badge key={cluster.code} variant="outline" className="justify-center">
+                    {cluster.code}: {enrollments.filter((entry) => entry.courseId === c.id && entry.clusterCode === cluster.code).length}
+                  </Badge>
+                ))}
               </div>
               <div className="mt-3 flex gap-2">
                 <Button size="sm" variant="outline" className="flex-1" onClick={() => setEditing(c)}>Edit</Button>
@@ -678,8 +704,19 @@ function AdminCohortsPanel() {
   return (
     <div className="space-y-3">
       <h3 className="text-lg font-bold">Cohorts</h3>
-      <p className="text-sm text-muted-foreground">Students auto-fill cohorts based on each course's cohort size. Assign a tutor once a cohort is full.</p>
+      <p className="text-sm text-muted-foreground">Students auto-fill cohorts by course and macro-region cluster. Assign a tutor once a cluster cohort is ready.</p>
       {cohorts.length === 0 && <Card className="p-8 text-center text-sm text-muted-foreground">No cohorts yet. Enrollments will create them automatically.</Card>}
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        {REGIONAL_CLUSTERS.map((cluster) => (
+          <Card key={cluster.code} className="p-3">
+            <div className="text-xs font-bold text-primary">{cluster.code}</div>
+            <div className="mt-1 text-sm font-medium">{cluster.shortLabel}</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              {enrollments.filter((entry) => entry.clusterCode === cluster.code).length} students · {cluster.timezone}
+            </div>
+          </Card>
+        ))}
+      </div>
       <div className="grid gap-3">
         {cohorts.map((c) => {
           const course = courses.find((x) => x.id === c.courseId);
@@ -689,8 +726,11 @@ function AdminCohortsPanel() {
             <Card key={c.id} className="p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="font-bold">{course?.title.en} · Cohort {c.number}</p>
-                  <p className="text-xs text-muted-foreground">{students.length}/{course?.cohortSize} students · {full ? "Full" : "Filling"} · {c.completed ? "Completed" : "Active"}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-bold">{course?.title.en} · Cohort {c.number}</p>
+                    <Badge variant="outline">{c.clusterCode ?? "EAST_ANG"}</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{students.length}/{course?.cohortSize} students · {clusterLabel(c.clusterCode)} · {clusterTimezone(c.clusterCode)} · {full ? "Full" : "Filling"} · {c.completed ? "Completed" : "Active"}</p>
                   <p className="text-xs text-muted-foreground">Tutor: {c.tutorEmail ?? "unassigned"}</p>
                 </div>
                 {!c.completed && (
