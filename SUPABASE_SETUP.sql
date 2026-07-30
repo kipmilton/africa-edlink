@@ -156,6 +156,13 @@ alter table public.courses add column if not exists for_en text;
 alter table public.courses add column if not exists for_fr text;
 alter table public.courses add column if not exists base_price_usd numeric not null default 800;
 alter table public.courses add column if not exists cohort_size integer not null default 8 check (cohort_size between 5 and 10);
+alter table public.courses add column if not exists duration_weeks integer not null default 12 check (duration_weeks between 1 and 104);
+
+-- Applicants must be able to read their own tutor application (pending screen).
+drop policy if exists "Users read own applications" on public.tutor_applications;
+create policy "Users read own applications" on public.tutor_applications
+  for select to authenticated
+  using (auth.uid() = user_id or lower(email) = lower(auth.jwt()->>'email'));
 
 -- Course cohorts assigned by admins to tutors.
 create table if not exists public.cohorts (
