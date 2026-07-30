@@ -31,19 +31,23 @@ function AuthPage() {
     e.preventDefault();
     setBusy(true);
     try {
-      if (!email || !password) throw new Error("Email and password are required");
+      const cleanEmail = email.trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(cleanEmail)) throw new Error("Enter a valid email address");
+      if (!password) throw new Error("Password is required");
       if (mode === "signin") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
         if (error) throw error;
         toast.success(t("auth.toast.welcome"));
         navigate({ to: "/dashboard" });
       } else {
+        if (password.length < 8) throw new Error("Password must be at least 8 characters");
+        if (fullName.trim().length < 2) throw new Error("Enter your full name");
         const { error } = await supabase.auth.signUp({
-          email,
+          email: cleanEmail,
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/dashboard`,
-            data: { full_name: fullName },
+            data: { full_name: fullName.trim() },
           },
         });
         if (error) throw error;
