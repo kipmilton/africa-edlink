@@ -256,6 +256,13 @@ function EnrollPage() {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!user) return toast.error("Sign in above to continue");
+    const cleanName = fullName.trim();
+    const cleanEmail = (user.email || email).trim().toLowerCase();
+    const cleanPhone = phone.trim();
+    if (cleanName.length < 2 || cleanName.length > 100) return toast.error("Enter your full name (2–100 characters)");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(cleanEmail)) return toast.error("Enter a valid email address");
+    if (!/^\+?[0-9\s-]{7,20}$/.test(cleanPhone)) return toast.error("Enter a valid phone number (7–20 digits)");
+    if (!selectedCountry) return toast.error("Select your country so we can route your payment");
     const amountToRecord = getAmountToRecord();
     if (typeof amountToRecord !== "number") return;
 
@@ -266,9 +273,9 @@ function EnrollPage() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           studentData: {
-            fullName,
-            email: user.email,
-            phone,
+            fullName: cleanName,
+            email: cleanEmail,
+            phone: cleanPhone,
             education,
             heardFrom: heard,
             country: selectedCountry?.name ?? country,
@@ -329,7 +336,9 @@ function EnrollPage() {
 
         <Card className="p-6">
           <h2 className="text-xl font-bold">Enrollment Details for {course.title.en} · Cohort {nextCohortNumber}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Complete the form below. We will route your payment automatically based on your selected country.</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {course.durationWeeks} weeks · cohorts of {course.cohortSize}. Complete the form below and we will route your payment automatically based on your selected country.
+          </p>
 
           <form onSubmit={submit} className="mt-6 space-y-6">
             <fieldset className="grid gap-3">
