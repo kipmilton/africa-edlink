@@ -112,6 +112,28 @@ function CareersPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (resumeError) return;
+
+    // Tutor applications are row-level-security scoped to the applicant, so a
+    // session is required before we upload anything.
+    const { data: preUser } = await supabase.auth.getUser();
+    if (!preUser.user) {
+      toast.error(
+        T(
+          "Please sign in (or create an account) before applying to teach.",
+          "Veuillez vous connecter (ou créer un compte) avant de postuler.",
+        ),
+      );
+      return;
+    }
+    if (fullName.trim().length < 2 || bio.trim().length < 20) {
+      toast.error(
+        T(
+          "Add your full name and at least a short paragraph about your teaching.",
+          "Ajoutez votre nom complet et un court paragraphe sur votre enseignement.",
+        ),
+      );
+      return;
+    }
     let resumeUrl: string | undefined;
     let resumeName: string | undefined;
     let resumeSize: number | undefined;
@@ -156,16 +178,15 @@ function CareersPage() {
     }
 
     // Persist to Supabase so admins can review from any device.
-    const { data: userData } = await supabase.auth.getUser();
     const { error: insertError } = await supabase.from("tutor_applications").insert({
-      user_id: userData.user?.id ?? null,
-      full_name: fullName,
-      email,
-      phone,
-      country,
+      user_id: preUser.user.id,
+      full_name: fullName.trim(),
+      email: email.trim().toLowerCase(),
+      phone: phone.trim(),
+      country: country.trim(),
       specialization,
-      bio,
-      experience,
+      bio: bio.trim(),
+      experience: experience.trim(),
       resume_name: resumeName,
       resume_size: resumeSize,
       resume_url: resumeUrl,
