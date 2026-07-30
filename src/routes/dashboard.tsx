@@ -599,6 +599,7 @@ function AdminCoursesPanel() {
               <div className="mt-2 flex flex-wrap gap-2 text-xs">
                 <Badge variant="secondary">{formatPrice(c.basePriceUSD, currency)}</Badge>
                 <Badge variant="outline">Cohort size: {c.cohortSize}</Badge>
+                <Badge variant="outline">{c.durationWeeks} weeks</Badge>
               </div>
               <div className="mt-3 grid grid-cols-2 gap-1 text-xs">
                 {REGIONAL_CLUSTERS.map((cluster) => (
@@ -637,6 +638,7 @@ function CourseForm({
   const [image, setImage] = useState(initial?.image ?? "");
   const [price, setPrice] = useState<number>(initial?.basePriceUSD ?? 800);
   const [cohortSize, setCohortSize] = useState<number>(initial?.cohortSize ?? 8);
+  const [durationWeeks, setDurationWeeks] = useState<number>(initial?.durationWeeks ?? 12);
   const [mode, setMode] = useState<"online" | "physical" | "hybrid">(initial?.delivery ?? "online");
 
   const submit = (e: FormEvent) => {
@@ -651,6 +653,7 @@ function CourseForm({
       delivery: mode,
       basePriceUSD: Number(price),
       cohortSize: Math.min(10, Math.max(5, Number(cohortSize))),
+      durationWeeks: Math.max(1, Math.min(104, Number(durationWeeks) || 12)),
     });
   };
 
@@ -678,9 +681,10 @@ function CourseForm({
         <div><Label>Who this is for (English)</Label><Textarea value={audience} onChange={(e) => setAudience(e.target.value)} rows={2} /></div>
         <div><Label>Who this is for (French)</Label><Textarea value={audienceFr} onChange={(e) => setAudienceFr(e.target.value)} rows={2} /></div>
       </div>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <div><Label>Base price (USD)</Label><Input type="number" min={0} value={price} onChange={(e) => setPrice(Number(e.target.value))} required /></div>
         <div><Label>Cohort size (5–10)</Label><Input type="number" min={5} max={10} value={cohortSize} onChange={(e) => setCohortSize(Number(e.target.value))} required /></div>
+        <div><Label>Duration (weeks)</Label><Input type="number" min={1} max={104} value={durationWeeks} onChange={(e) => setDurationWeeks(Number(e.target.value))} required /></div>
         <div>
           <Label>Mode</Label>
           <Select value={mode} onValueChange={(v) => setMode(v as "online" | "physical" | "hybrid")}>

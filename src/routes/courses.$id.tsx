@@ -128,6 +128,10 @@ function CourseDetail() {
             </div>
             <div className="flex gap-3">
               <Clock className="mt-0.5 h-4 w-4 text-primary" />
+              <span>Duration: {course.durationWeeks} weeks</span>
+            </div>
+            <div className="flex gap-3">
+              <Clock className="mt-0.5 h-4 w-4 text-primary" />
               <span>Delivery: {delivery}</span>
             </div>
             <div className="flex gap-3">

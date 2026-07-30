@@ -119,6 +119,9 @@ function CoursesPage() {
                 <div className="mt-4 text-lg font-bold text-primary">
                   {formatPrice(c.basePriceUSD, currency)}
                 </div>
+                <p className="mt-1 text-xs font-medium text-muted-foreground">
+                  {c.durationWeeks} {lang === "en" ? "weeks" : "semaines"} · {c.cohortSize} {lang === "en" ? "learners per cohort" : "apprenants par cohorte"}
+                </p>
                 <div className="mt-auto flex gap-3 pt-6">
                   <Button asChild className="flex-1 rounded-lg">
                     <Link to="/enroll/$id" params={{ id: c.id }}>{t("courses.enroll")}</Link>

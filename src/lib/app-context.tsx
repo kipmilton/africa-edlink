@@ -17,6 +17,7 @@ export type LocalCourse = Course & {
   secondaryCta?: string;
   basePriceUSD: number;
   cohortSize: number;
+  durationWeeks: number;
   outline?: string[];
 };
 
@@ -145,6 +146,7 @@ function hydrateSeed(): LocalCourse[] {
     ...c,
     basePriceUSD: SEED_PRICES[c.id] ?? 800,
     cohortSize: 8,
+    durationWeeks: 12,
   }));
 }
 
@@ -164,6 +166,7 @@ type CourseRow = {
   for_fr?: string | null;
   base_price_usd?: number | null;
   cohort_size?: number | null;
+  duration_weeks?: number | null;
   is_published?: boolean | null;
 };
 
@@ -235,6 +238,7 @@ function mapCourseRow(row: CourseRow): LocalCourse | null {
     },
     basePriceUSD: Number(row.base_price_usd ?? seed?.basePriceUSD ?? 800),
     cohortSize: Math.min(10, Math.max(5, Number(row.cohort_size ?? seed?.cohortSize ?? 8))),
+    durationWeeks: Math.max(1, Number(row.duration_weeks ?? seed?.durationWeeks ?? 12)),
   };
 }
 
@@ -256,6 +260,7 @@ function courseToRow(course: LocalCourse | Partial<LocalCourse>, fallbackId?: st
     for_fr: course.for?.fr ?? course.for?.en ?? "",
     base_price_usd: Number(course.basePriceUSD ?? 800),
     cohort_size: Math.min(10, Math.max(5, Number(course.cohortSize ?? 8))),
+    duration_weeks: Math.max(1, Math.min(104, Number(course.durationWeeks ?? 12))),
     is_published: true,
   };
 }
