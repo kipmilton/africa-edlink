@@ -640,6 +640,11 @@ function CourseForm({
   const [cohortSize, setCohortSize] = useState<number>(initial?.cohortSize ?? 8);
   const [durationWeeks, setDurationWeeks] = useState<number>(initial?.durationWeeks ?? 12);
   const [mode, setMode] = useState<"online" | "physical" | "hybrid">(initial?.delivery ?? "online");
+  const { courseFields } = useApp();
+  const [fieldSlug, setFieldSlug] = useState<string>(initial?.fieldSlug ?? courseFields[0]?.slug ?? "");
+  const [stepNumber, setStepNumber] = useState<number>(initial?.stepNumber ?? 1);
+  const [difficultyLevel, setDifficultyLevel] = useState<LocalCourse["difficultyLevel"]>(initial?.difficultyLevel ?? "Beginner");
+  const [targetAudience, setTargetAudience] = useState<LocalCourse["targetAudience"]>(initial?.targetAudience ?? "Adults");
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -654,6 +659,10 @@ function CourseForm({
       basePriceUSD: Number(price),
       cohortSize: Math.min(10, Math.max(5, Number(cohortSize))),
       durationWeeks: Math.max(1, Math.min(104, Number(durationWeeks) || 12)),
+      fieldSlug,
+      stepNumber: Math.max(1, Math.min(20, Number(stepNumber) || 1)),
+      difficultyLevel,
+      targetAudience,
     });
   };
 
@@ -693,6 +702,41 @@ function CourseForm({
               <SelectItem value="online">Online</SelectItem>
               <SelectItem value="physical">Physical</SelectItem>
               <SelectItem value="hybrid">Hybrid</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div>
+          <Label>Field</Label>
+          <Select value={fieldSlug} onValueChange={setFieldSlug}>
+            <SelectTrigger><SelectValue placeholder="Select field" /></SelectTrigger>
+            <SelectContent>
+              {courseFields.map((f) => (
+                <SelectItem key={f.slug} value={f.slug}>{f.title}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div><Label>Step number</Label><Input type="number" min={1} max={20} value={stepNumber} onChange={(e) => setStepNumber(Number(e.target.value))} required /></div>
+        <div>
+          <Label>Difficulty</Label>
+          <Select value={difficultyLevel} onValueChange={(v) => setDifficultyLevel(v as LocalCourse["difficultyLevel"])}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Beginner">Beginner</SelectItem>
+              <SelectItem value="Intermediate">Intermediate</SelectItem>
+              <SelectItem value="Advanced">Advanced</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>Audience</Label>
+          <Select value={targetAudience} onValueChange={(v) => setTargetAudience(v as LocalCourse["targetAudience"])}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Adults">Adults</SelectItem>
+              <SelectItem value="Kids">Kids (7–17)</SelectItem>
             </SelectContent>
           </Select>
         </div>
