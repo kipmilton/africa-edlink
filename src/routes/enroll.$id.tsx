@@ -58,6 +58,7 @@ function EnrollPage() {
   const [country, setCountry] = useState(detectedCountry || "");
   const [preferredTime, setPreferredTime] = useState<PreferredTimeSlot>("5-7");
   const [preferredLanguage, setPreferredLanguage] = useState<PreferredLanguage>("en");
+  const [languageChosen, setLanguageChosen] = useState(false);
   const [payOption, setPayOption] = useState<"full" | "partial">("full");
   const [partialAmount, setPartialAmount] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -78,8 +79,8 @@ function EnrollPage() {
   }, [selectedCountry, selectedLanguage, lang, setLang]);
 
   useEffect(() => {
-    setPreferredLanguage(selectedCluster.language);
-  }, [selectedCluster.language]);
+    if (!languageChosen) setPreferredLanguage(selectedCluster.language);
+  }, [selectedCluster.language, languageChosen]);
 
   if (!course) {
     return (
@@ -91,7 +92,13 @@ function EnrollPage() {
   }
 
   const nextCohortNumber = (() => {
-    const active = cohorts.filter((c) => c.courseId === course.id && c.clusterCode === selectedCluster.code && !c.completed);
+    const active = cohorts.filter(
+      (c) =>
+        c.courseId === course.id &&
+        c.clusterCode === selectedCluster.code &&
+        (c.languageCode ?? "en") === preferredLanguage &&
+        !c.completed,
+    );
     const last = active[active.length - 1];
     if (!last || last.studentIds.length >= course.cohortSize) return (active.length || 0) + 1;
     return last.number;
@@ -162,6 +169,7 @@ function EnrollPage() {
             preferredTime,
             clusterCode: selectedCluster.code,
             paymentOption: payOption,
+            languageCode: preferredLanguage,
           },
         }),
       });
@@ -187,6 +195,7 @@ function EnrollPage() {
           preferredLanguage,
           preferredTime,
           clusterCode: selectedCluster.code,
+          languageCode: preferredLanguage,
           paymentProvider: selectedPaymentProvider,
         });
       }
@@ -263,6 +272,7 @@ function EnrollPage() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(cleanEmail)) return toast.error("Enter a valid email address");
     if (!/^\+?[0-9\s-]{7,20}$/.test(cleanPhone)) return toast.error("Enter a valid phone number (7–20 digits)");
     if (!selectedCountry) return toast.error("Select your country so we can route your payment");
+    if (!preferredLanguage) return toast.error("Select the language you want to learn in");
     const amountToRecord = getAmountToRecord();
     if (typeof amountToRecord !== "number") return;
 
@@ -284,10 +294,13 @@ function EnrollPage() {
             preferredTime,
             clusterCode: selectedCluster.code,
             paymentOption: payOption,
+            languageCode: preferredLanguage,
           },
           courseId: course.id,
           courseTitle: course.title.en,
           countryCode: selectedCountry?.code ?? country,
+          language_code: preferredLanguage,
+          cluster_code: selectedCluster.code,
           amount: amountToRecord,
           currency: selectedCurrency,
           paymentOption: payOption,
@@ -369,22 +382,29 @@ function EnrollPage() {
                 </div>
               </div>
               <div>
-                <Label>Preferred Language</Label>
+                <Label>Class Language *</Label>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  You will be grouped with learners in your region who chose the same language.
+                </p>
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   {[
-                    { value: "en" as const, label: "English" },
-                    { value: "fr" as const, label: "French" },
+                    { value: "en" as const, label: "🇬🇧 English" },
+                    { value: "fr" as const, label: "🇫🇷 Français" },
                   ].map((option) => (
                     <Button
                       key={option.value}
                       type="button"
+                      aria-pressed={preferredLanguage === option.value}
                       variant={preferredLanguage === option.value ? "default" : "outline"}
-                      onClick={() => setPreferredLanguage(option.value)}
+                      onClick={() => { setPreferredLanguage(option.value); setLanguageChosen(true); }}
                     >
                       {option.label}
                     </Button>
                   ))}
                 </div>
+                <p className="mt-2 text-xs font-semibold text-primary">
+                  Cohort key: {course.title.en} · [{selectedCluster.code} - {preferredLanguage.toUpperCase()}]
+                </p>
               </div>
               <div>
                 <Label>Preferred Live Class Time</Label>

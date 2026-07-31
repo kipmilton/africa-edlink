@@ -21,6 +21,7 @@ export type StudentPaymentData = {
   country?: string;
   language?: "en" | "fr";
   preferredLanguage?: PreferredLanguage;
+  languageCode?: PreferredLanguage;
   preferredTime?: PreferredTimeSlot;
   clusterCode?: ClusterCode;
   paymentOption?: "full" | "partial";

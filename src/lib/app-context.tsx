@@ -8,6 +8,13 @@ import {
   type PreferredTimeSlot,
 } from "@/lib/regional-clusters";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  COURSE_FIELD_META,
+  SEED_FIELDS,
+  type CourseField,
+  type DifficultyLevel,
+  type TargetAudience,
+} from "@/lib/course-fields";
 
 export type Lang = "en" | "fr";
 export type Role = "student" | "tutor" | "admin";
@@ -19,6 +26,10 @@ export type LocalCourse = Course & {
   cohortSize: number;
   durationWeeks: number;
   outline?: string[];
+  fieldSlug?: string;
+  stepNumber: number;
+  difficultyLevel: DifficultyLevel;
+  targetAudience: TargetAudience;
 };
 
 export type Enrollment = {
@@ -39,6 +50,7 @@ export type Enrollment = {
   preferredLanguage?: PreferredLanguage;
   preferredTime?: PreferredTimeSlot;
   clusterCode?: ClusterCode;
+  languageCode?: Lang;
   paymentProvider?: PaymentProvider;
   createdAt: string;
 };
@@ -48,6 +60,7 @@ export type Cohort = {
   courseId: string;
   number: number;
   clusterCode?: ClusterCode;
+  languageCode?: Lang;
   studentIds: string[]; // enrollment ids
   tutorEmail?: string;
   completed: boolean;
@@ -111,6 +124,11 @@ type AppCtx = {
   courses: LocalCourse[];
   addCourse: (c: LocalCourse) => void;
   updateCourse: (id: string, patch: Partial<LocalCourse>) => void;
+  courseFields: CourseField[];
+  addCourseField: (field: Omit<CourseField, "id">) => Promise<void>;
+  updateCourseField: (slug: string, patch: Partial<CourseField>) => Promise<void>;
+  moveCourseField: (slug: string, direction: -1 | 1) => Promise<void>;
+  moveCourseStep: (courseId: string, direction: -1 | 1) => Promise<void>;
   enrollments: Enrollment[];
   cohorts: Cohort[];
   enroll: (input: Omit<Enrollment, "id" | "cohortId" | "createdAt">) => Promise<{ enrollment: Enrollment; cohort: Cohort }>;
@@ -141,13 +159,33 @@ const SEED_PRICES: Record<string, number> = {
   cyber: 950,
 };
 
+const KIDS_DEFAULT_PRICE = 300;
+
+function metaFor(slug: string) {
+  return (
+    COURSE_FIELD_META[slug] ?? {
+      fieldSlug: undefined as string | undefined,
+      stepNumber: 1,
+      difficultyLevel: "Beginner" as DifficultyLevel,
+      targetAudience: "Adults" as TargetAudience,
+    }
+  );
+}
+
 function hydrateSeed(): LocalCourse[] {
-  return seedCourses.map((c) => ({
-    ...c,
-    basePriceUSD: SEED_PRICES[c.id] ?? 800,
-    cohortSize: 8,
-    durationWeeks: 12,
-  }));
+  return seedCourses.map((c) => {
+    const meta = metaFor(c.id);
+    return {
+      ...c,
+      basePriceUSD: SEED_PRICES[c.id] ?? (meta.targetAudience === "Kids" ? KIDS_DEFAULT_PRICE : 800),
+      cohortSize: 8,
+      durationWeeks: meta.targetAudience === "Kids" ? 8 : 12,
+      fieldSlug: meta.fieldSlug,
+      stepNumber: meta.stepNumber,
+      difficultyLevel: meta.difficultyLevel,
+      targetAudience: meta.targetAudience,
+    };
+  });
 }
 
 type CourseRow = {
@@ -168,6 +206,10 @@ type CourseRow = {
   cohort_size?: number | null;
   duration_weeks?: number | null;
   is_published?: boolean | null;
+  field_id?: string | null;
+  step_number?: number | null;
+  difficulty_level?: DifficultyLevel | null;
+  target_age_group?: TargetAudience | null;
 };
 
 type EnrollmentRow = {
@@ -190,6 +232,7 @@ type EnrollmentRow = {
   cluster_code?: ClusterCode | null;
   payment_provider?: PaymentProvider | null;
   created_at?: string | null;
+  language_code?: Lang | null;
 };
 
 type CohortRow = {
@@ -197,8 +240,20 @@ type CohortRow = {
   course_id: string;
   number: number;
   cluster_code?: ClusterCode | null;
+  language_code?: Lang | null;
   tutor_email?: string | null;
   completed?: boolean | null;
+};
+
+type CourseFieldRow = {
+  id: string;
+  title: string;
+  slug: string;
+  description?: string | null;
+  icon_name?: string | null;
+  target_audience?: TargetAudience | null;
+  display_order?: number | null;
+  is_active?: boolean | null;
 };
 
 function slugify(value: string) {
@@ -211,10 +266,11 @@ function slugify(value: string) {
     .slice(0, 64);
 }
 
-function mapCourseRow(row: CourseRow): LocalCourse | null {
+function mapCourseRow(row: CourseRow, fieldSlugById: Map<string, string>): LocalCourse | null {
   const id = row.slug?.trim();
   if (!id || !row.title) return null;
   const seed = hydrateSeed().find((course) => course.id === id);
+  const meta = metaFor(id);
   return {
     id,
     image: row.image_url || seed?.image || "",
@@ -239,11 +295,20 @@ function mapCourseRow(row: CourseRow): LocalCourse | null {
     basePriceUSD: Number(row.base_price_usd ?? seed?.basePriceUSD ?? 800),
     cohortSize: Math.min(10, Math.max(5, Number(row.cohort_size ?? seed?.cohortSize ?? 8))),
     durationWeeks: Math.max(1, Number(row.duration_weeks ?? seed?.durationWeeks ?? 12)),
+    fieldSlug: (row.field_id ? fieldSlugById.get(row.field_id) : undefined) ?? seed?.fieldSlug ?? meta.fieldSlug,
+    stepNumber: Math.max(1, Number(row.step_number ?? seed?.stepNumber ?? meta.stepNumber)),
+    difficultyLevel: row.difficulty_level ?? seed?.difficultyLevel ?? meta.difficultyLevel,
+    targetAudience: row.target_age_group ?? seed?.targetAudience ?? meta.targetAudience,
   };
 }
 
-function courseToRow(course: LocalCourse | Partial<LocalCourse>, fallbackId?: string): CourseRow {
+function courseToRow(
+  course: LocalCourse | Partial<LocalCourse>,
+  fallbackId?: string,
+  fieldIdBySlug?: Map<string, string>,
+): CourseRow {
   const title = course.title?.en?.trim() || "New Course";
+  const fieldId = course.fieldSlug ? fieldIdBySlug?.get(course.fieldSlug) : undefined;
   return {
     slug: fallbackId ?? course.id ?? slugify(title),
     title,
@@ -262,6 +327,10 @@ function courseToRow(course: LocalCourse | Partial<LocalCourse>, fallbackId?: st
     cohort_size: Math.min(10, Math.max(5, Number(course.cohortSize ?? 8))),
     duration_weeks: Math.max(1, Math.min(104, Number(course.durationWeeks ?? 12))),
     is_published: true,
+    ...(fieldId ? { field_id: fieldId } : {}),
+    step_number: Math.max(1, Number(course.stepNumber ?? 1)),
+    difficulty_level: course.difficultyLevel ?? "Beginner",
+    target_age_group: course.targetAudience ?? "Adults",
   };
 }
 
@@ -284,6 +353,7 @@ function mapEnrollmentRow(row: EnrollmentRow): Enrollment {
     preferredLanguage: row.preferred_language ?? row.language ?? undefined,
     preferredTime: row.preferred_time ?? undefined,
     clusterCode: row.cluster_code ?? resolveRegionalCluster(row.country).code,
+    languageCode: row.language_code ?? row.preferred_language ?? row.language ?? "en",
     paymentProvider: row.payment_provider ?? undefined,
     createdAt: row.created_at ?? new Date().toISOString(),
   };
@@ -481,6 +551,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [country, setCountry] = useState<string>("KE");
   const [currency, setCurrency] = useState<Currency>("KES");
   const [tutorApplications, setTutorApplications] = useState<TutorApplication[]>([]);
+  const [courseFields, setCourseFields] = useState<CourseField[]>(SEED_FIELDS);
 
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -507,7 +578,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     let mounted = true;
 
     const load = async () => {
-      const [{ data: courseRows }, { data: cohortRows }, { data: enrollmentRows }] = await Promise.all([
+      const [{ data: fieldRows }, { data: courseRows }, { data: cohortRows }, { data: enrollmentRows }] = await Promise.all([
+        supabase
+          .from("course_fields")
+          .select("*")
+          .order("display_order", { ascending: true }),
         supabase
           .from("courses")
           .select("*")
@@ -524,8 +599,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       if (!mounted) return;
 
+      const mappedFields = ((fieldRows ?? []) as CourseFieldRow[]).map((row) => ({
+        id: row.id,
+        slug: row.slug,
+        title: row.title,
+        description: row.description ?? undefined,
+        iconName: row.icon_name ?? "Shield",
+        targetAudience: row.target_audience ?? "Adults",
+        displayOrder: Number(row.display_order ?? 0),
+        isActive: row.is_active !== false,
+      }));
+      if (mappedFields.length > 0) setCourseFields(mappedFields);
+      const activeFields = mappedFields.length > 0 ? mappedFields : SEED_FIELDS;
+      const fieldSlugById = new Map(activeFields.filter((f) => f.id).map((f) => [f.id as string, f.slug]));
+
       const mappedCourses = ((courseRows ?? []) as CourseRow[])
-        .map(mapCourseRow)
+        .map((row) => mapCourseRow(row, fieldSlugById))
         .filter((course): course is LocalCourse => !!course);
       if (mappedCourses.length > 0) setCourses(mappedCourses);
 
@@ -537,6 +626,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         courseId: row.course_id,
         number: row.number,
         clusterCode: row.cluster_code ?? undefined,
+        languageCode: row.language_code ?? undefined,
         tutorEmail: row.tutor_email ?? undefined,
         completed: !!row.completed,
         studentIds: mappedEnrollments
@@ -549,6 +639,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     load();
     const channel = supabase
       .channel("catalog_enrollment_changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "course_fields" }, () => load())
       .on("postgres_changes", { event: "*", schema: "public", table: "courses" }, () => load())
       .on("postgres_changes", { event: "*", schema: "public", table: "cohorts" }, () => load())
       .on("postgres_changes", { event: "*", schema: "public", table: "enrollments" }, () => load())
@@ -604,36 +695,125 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => { saveLS(LS.certs, certificates); }, [certificates]);
 
   const addCourse = (c: LocalCourse) => {
+    const fieldIdBySlug = new Map(courseFields.filter((f) => f.id).map((f) => [f.slug, f.id as string]));
     const id = c.id || slugify(c.title.en);
     const course = { ...c, id };
     setCourses((prev) => [course, ...prev]);
-    supabase.from("courses").insert(courseToRow(course, id)).then(({ error }) => {
-      if (error) console.error("Failed to save course", error);
-    });
+    void supabase.from("courses").insert(courseToRow(course, id, fieldIdBySlug));
   };
 
   const updateCourse = (id: string, patch: Partial<LocalCourse>) => {
+    const fieldIdBySlug = new Map(courseFields.filter((f) => f.id).map((f) => [f.slug, f.id as string]));
     const current = courses.find((course) => course.id === id);
     const updated = current ? { ...current, ...patch } : { ...patch, id };
     setCourses((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
-    supabase.from("courses").update(courseToRow(updated, id)).eq("slug", id).then(({ error }) => {
-      if (error) console.error("Failed to update course", error);
+    void supabase.from("courses").update(courseToRow(updated, id, fieldIdBySlug)).eq("slug", id);
+  };
+
+  const addCourseField: AppCtx["addCourseField"] = async (field) => {
+    const slug = field.slug?.trim() || slugify(field.title);
+    const nextOrder = field.displayOrder || courseFields.length + 1;
+    const record = { ...field, slug, displayOrder: nextOrder, isActive: field.isActive !== false };
+    setCourseFields((prev) => [...prev, record].sort((a, b) => a.displayOrder - b.displayOrder));
+    const { data } = await supabase
+      .from("course_fields")
+      .insert({
+        title: record.title,
+        slug,
+        description: record.description ?? "",
+        icon_name: record.iconName,
+        target_audience: record.targetAudience,
+        display_order: nextOrder,
+        is_active: record.isActive,
+      })
+      .select("id")
+      .maybeSingle();
+    if (data?.id) {
+      setCourseFields((prev) => prev.map((f) => (f.slug === slug ? { ...f, id: String(data.id) } : f)));
+    }
+  };
+
+  const updateCourseField: AppCtx["updateCourseField"] = async (slug, patch) => {
+    setCourseFields((prev) =>
+      prev.map((f) => (f.slug === slug ? { ...f, ...patch } : f)).sort((a, b) => a.displayOrder - b.displayOrder),
+    );
+    const row: Record<string, unknown> = {};
+    if (patch.title !== undefined) row.title = patch.title;
+    if (patch.description !== undefined) row.description = patch.description;
+    if (patch.iconName !== undefined) row.icon_name = patch.iconName;
+    if (patch.targetAudience !== undefined) row.target_audience = patch.targetAudience;
+    if (patch.displayOrder !== undefined) row.display_order = patch.displayOrder;
+    if (patch.isActive !== undefined) row.is_active = patch.isActive;
+    if (Object.keys(row).length === 0) return;
+    await supabase.from("course_fields").update(row).eq("slug", slug);
+  };
+
+  const moveCourseField: AppCtx["moveCourseField"] = async (slug, direction) => {
+    const ordered = [...courseFields].sort((a, b) => a.displayOrder - b.displayOrder);
+    const index = ordered.findIndex((f) => f.slug === slug);
+    const swapIndex = index + direction;
+    if (index < 0 || swapIndex < 0 || swapIndex >= ordered.length) return;
+    const a = ordered[index];
+    const b = ordered[swapIndex];
+    const reordered = ordered.map((f, i) => {
+      if (i === index) return { ...a, displayOrder: swapIndex + 1 };
+      if (i === swapIndex) return { ...b, displayOrder: index + 1 };
+      return { ...f, displayOrder: i + 1 };
     });
+    setCourseFields(reordered.sort((x, y) => x.displayOrder - y.displayOrder));
+    await Promise.all(
+      reordered.map((f) => supabase.from("course_fields").update({ display_order: f.displayOrder }).eq("slug", f.slug)),
+    );
+  };
+
+  const moveCourseStep: AppCtx["moveCourseStep"] = async (courseId, direction) => {
+    const current = courses.find((c) => c.id === courseId);
+    if (!current) return;
+    const siblings = courses
+      .filter((c) => (c.fieldSlug ?? "") === (current.fieldSlug ?? ""))
+      .sort((a, b) => a.stepNumber - b.stepNumber);
+    const index = siblings.findIndex((c) => c.id === courseId);
+    const swapIndex = index + direction;
+    if (swapIndex < 0 || swapIndex >= siblings.length) return;
+    const reordered = [...siblings];
+    [reordered[index], reordered[swapIndex]] = [reordered[swapIndex], reordered[index]];
+    const withSteps = reordered.map((c, i) => ({ ...c, stepNumber: i + 1 }));
+    setCourses((prev) =>
+      prev.map((c) => {
+        const match = withSteps.find((x) => x.id === c.id);
+        return match ? { ...c, stepNumber: match.stepNumber } : c;
+      }),
+    );
+    await Promise.all(
+      withSteps.map((c) => supabase.from("courses").update({ step_number: c.stepNumber }).eq("slug", c.id)),
+    );
   };
 
   const enroll: AppCtx["enroll"] = async (input) => {
     const course = courses.find((c) => c.id === input.courseId);
     const size = Math.min(10, Math.max(5, course?.cohortSize ?? 8));
     const clusterCode = input.clusterCode ?? resolveRegionalCluster(input.country).code;
-    const courseCohorts = cohorts.filter((c) => c.courseId === input.courseId && c.clusterCode === clusterCode && !c.completed);
+    const languageCode: Lang = input.languageCode ?? input.preferredLanguage ?? input.language ?? "en";
+    // Composite grouping key = course_id + language_code + cluster_code
+    const courseCohorts = cohorts.filter(
+      (c) =>
+        c.courseId === input.courseId &&
+        c.clusterCode === clusterCode &&
+        (c.languageCode ?? "en") === languageCode &&
+        !c.completed,
+    );
     let target = courseCohorts.find((c) => c.studentIds.length < size);
     let newCohorts = cohorts;
     if (!target) {
+      const sameKeyCount = cohorts.filter(
+        (c) => c.courseId === input.courseId && c.clusterCode === clusterCode && (c.languageCode ?? "en") === languageCode,
+      ).length;
       target = {
         id: crypto.randomUUID(),
         courseId: input.courseId,
-        number: courseCohorts.length + 1,
+        number: sameKeyCount + 1,
         clusterCode,
+        languageCode,
         studentIds: [],
         completed: false,
       };
@@ -643,12 +823,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         course_id: target.courseId,
         number: target.number,
         cluster_code: target.clusterCode,
+        language_code: languageCode,
         completed: false,
       });
     }
     const enrollment: Enrollment = {
       ...input,
       clusterCode,
+      languageCode,
       id: crypto.randomUUID(),
       cohortId: target.id,
       createdAt: new Date().toISOString(),
@@ -671,10 +853,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       preferred_language: enrollment.preferredLanguage,
       preferred_time: enrollment.preferredTime,
       cluster_code: enrollment.clusterCode ?? clusterCode,
+      language_code: languageCode,
       payment_provider: enrollment.paymentProvider,
       created_at: enrollment.createdAt,
     });
-    if (error) console.error("Failed to save enrollment", error);
+    if (error) throw new Error("We could not save your enrollment. Please try again.");
     const updatedCohort: Cohort = { ...target, studentIds: [...target.studentIds, enrollment.id] };
     newCohorts = newCohorts.map((c) => (c.id === updatedCohort.id ? updatedCohort : c));
     setCohorts(newCohorts);
@@ -684,16 +867,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const assignTutorToCohort = (cohortId: string, tutorEmail: string) => {
     setCohorts((prev) => prev.map((c) => (c.id === cohortId ? { ...c, tutorEmail } : c)));
-    supabase.from("cohorts").update({ tutor_email: tutorEmail }).eq("id", cohortId).then(({ error }) => {
-      if (error) console.error("Failed to assign tutor", error);
-    });
+    void supabase.from("cohorts").update({ tutor_email: tutorEmail }).eq("id", cohortId);
   };
 
   const markCohortComplete = (cohortId: string) => {
     setCohorts((prev) => prev.map((c) => (c.id === cohortId ? { ...c, completed: true } : c)));
-    supabase.from("cohorts").update({ completed: true }).eq("id", cohortId).then(({ error }) => {
-      if (error) console.error("Failed to mark cohort complete", error);
-    });
+    void supabase.from("cohorts").update({ completed: true }).eq("id", cohortId);
   };
 
   const sendChat: AppCtx["sendChat"] = (m) =>
@@ -760,6 +939,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         courses,
         addCourse,
         updateCourse,
+        courseFields,
+        addCourseField,
+        updateCourseField,
+        moveCourseField,
+        moveCourseStep,
         enrollments,
         cohorts,
         enroll,

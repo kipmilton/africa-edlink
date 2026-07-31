@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
 import heroImg from "@/assets/hero.jpg";
+import { FieldExplorer } from "@/components/site/FieldExplorer";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -256,6 +257,9 @@ function Index() {
           </div>
         </div>
       </section>
+
+      {/* ===== FIELD & COURSE EXPLORER ===== */}
+      <FieldExplorer />
 
       {/* ===== COURSES ===== */}
       <section

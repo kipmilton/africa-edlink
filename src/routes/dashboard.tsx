@@ -164,7 +164,7 @@ function StudentDash() {
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <h3 className="font-bold">{course.title.en}</h3>
-                  <p className="text-xs text-muted-foreground">Cohort {cohort.number} [{cohort.clusterCode ?? e.clusterCode ?? "EAST_ANG"}]</p>
+                  <p className="text-xs text-muted-foreground">Cohort {cohort.number} [{(cohort.languageCode ?? e.languageCode ?? "en").toUpperCase()} - {cohort.clusterCode ?? e.clusterCode ?? "EAST_ANG"}]</p>
                 </div>
                 <Badge variant={cohort.completed ? "secondary" : "default"} className="rounded-full">
                   {cohort.completed ? "Completed" : "In progress"}
@@ -258,7 +258,7 @@ function TutorDash() {
                   <Badge variant={cohort.completed ? "secondary" : "default"} className="rounded-full">
                     {cohort.completed ? "Completed" : "Active"}
                   </Badge>
-                  <Badge variant="outline">{cohort.clusterCode ?? "EAST_ANG"}</Badge>
+                  <Badge variant="outline">{(cohort.languageCode ?? "en").toUpperCase()} - {cohort.clusterCode ?? "EAST_ANG"}</Badge>
                 </div>
               </div>
               <p className="mt-2 text-xs text-muted-foreground">{clusterTimezone(cohort.clusterCode)} · {(students[0]?.preferredLanguage ?? students[0]?.language) === "fr" ? "French" : "English"}</p>
@@ -473,6 +473,7 @@ function AdminDash() {
         <TabsTrigger value="overview">Global Overview</TabsTrigger>
         <TabsTrigger value="enrollments">Enrollments</TabsTrigger>
         <TabsTrigger value="courses">Courses</TabsTrigger>
+        <TabsTrigger value="fields">Fields</TabsTrigger>
         <TabsTrigger value="cohorts">Cohorts</TabsTrigger>
         <TabsTrigger value="tutors">Tutor Applications</TabsTrigger>
         <TabsTrigger value="graduate">Graduate School</TabsTrigger>
@@ -499,6 +500,7 @@ function AdminDash() {
       <TabsContent value="enrollments" className="mt-6"><AdminEnrollmentsPanel /></TabsContent>
       <TabsContent value="courses" className="mt-6"><AdminCoursesPanel /></TabsContent>
       <TabsContent value="cohorts" className="mt-6"><AdminCohortsPanel /></TabsContent>
+      <TabsContent value="fields" className="mt-6"><AdminFieldsPanel /></TabsContent>
       <TabsContent value="tutors" className="mt-6"><AdminTutorApplicationsPanel /></TabsContent>
       <TabsContent value="graduate" className="mt-6"><AdminGraduatePanel /></TabsContent>
     </Tabs>
@@ -640,6 +642,11 @@ function CourseForm({
   const [cohortSize, setCohortSize] = useState<number>(initial?.cohortSize ?? 8);
   const [durationWeeks, setDurationWeeks] = useState<number>(initial?.durationWeeks ?? 12);
   const [mode, setMode] = useState<"online" | "physical" | "hybrid">(initial?.delivery ?? "online");
+  const { courseFields } = useApp();
+  const [fieldSlug, setFieldSlug] = useState<string>(initial?.fieldSlug ?? courseFields[0]?.slug ?? "");
+  const [stepNumber, setStepNumber] = useState<number>(initial?.stepNumber ?? 1);
+  const [difficultyLevel, setDifficultyLevel] = useState<LocalCourse["difficultyLevel"]>(initial?.difficultyLevel ?? "Beginner");
+  const [targetAudience, setTargetAudience] = useState<LocalCourse["targetAudience"]>(initial?.targetAudience ?? "Adults");
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -654,6 +661,10 @@ function CourseForm({
       basePriceUSD: Number(price),
       cohortSize: Math.min(10, Math.max(5, Number(cohortSize))),
       durationWeeks: Math.max(1, Math.min(104, Number(durationWeeks) || 12)),
+      fieldSlug,
+      stepNumber: Math.max(1, Math.min(20, Number(stepNumber) || 1)),
+      difficultyLevel,
+      targetAudience,
     });
   };
 
@@ -697,12 +708,154 @@ function CourseForm({
           </Select>
         </div>
       </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div>
+          <Label>Field</Label>
+          <Select value={fieldSlug} onValueChange={setFieldSlug}>
+            <SelectTrigger><SelectValue placeholder="Select field" /></SelectTrigger>
+            <SelectContent>
+              {courseFields.map((f) => (
+                <SelectItem key={f.slug} value={f.slug}>{f.title}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div><Label>Step number</Label><Input type="number" min={1} max={20} value={stepNumber} onChange={(e) => setStepNumber(Number(e.target.value))} required /></div>
+        <div>
+          <Label>Difficulty</Label>
+          <Select value={difficultyLevel} onValueChange={(v) => setDifficultyLevel(v as LocalCourse["difficultyLevel"])}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Beginner">Beginner</SelectItem>
+              <SelectItem value="Intermediate">Intermediate</SelectItem>
+              <SelectItem value="Advanced">Advanced</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>Audience</Label>
+          <Select value={targetAudience} onValueChange={(v) => setTargetAudience(v as LocalCourse["targetAudience"])}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Adults">Adults</SelectItem>
+              <SelectItem value="Kids">Kids (7–17)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
       <DialogFooter><Button type="submit">Save course</Button></DialogFooter>
     </form>
   );
 }
 
 function AdminCohortsPanel() {
+  return <AdminCohortsPanelInner />;
+}
+
+function AdminFieldsPanel() {
+  const { courseFields, courses, addCourseField, updateCourseField, moveCourseField, moveCourseStep } = useApp();
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [audience, setAudience] = useState<"Adults" | "Kids">("Adults");
+  const ordered = [...courseFields].sort((a, b) => a.displayOrder - b.displayOrder);
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-lg font-bold">Fields &amp; Course Sequencing</h3>
+        <p className="text-sm text-muted-foreground">
+          Create career fields, re-order how they appear in the landing page explorer, and rank courses by step.
+        </p>
+      </div>
+
+      <Card className="p-4">
+        <form
+          className="grid gap-3 sm:grid-cols-4"
+          onSubmit={async (e: FormEvent) => {
+            e.preventDefault();
+            if (title.trim().length < 3) return toast.error("Field title is too short");
+            await addCourseField({
+              title: title.trim(),
+              slug: "",
+              description: description.trim(),
+              iconName: "Shield",
+              targetAudience: audience,
+              displayOrder: ordered.length + 1,
+              isActive: true,
+            });
+            setTitle(""); setDescription("");
+            toast.success("Field created");
+          }}
+        >
+          <div><Label>Field title</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} required /></div>
+          <div className="sm:col-span-2"><Label>Description</Label><Input value={description} onChange={(e) => setDescription(e.target.value)} /></div>
+          <div className="flex items-end gap-2">
+            <Select value={audience} onValueChange={(v) => setAudience(v as "Adults" | "Kids")}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Adults">Adults</SelectItem>
+                <SelectItem value="Kids">Kids</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button type="submit"><Plus className="h-4 w-4" /></Button>
+          </div>
+        </form>
+      </Card>
+
+      <div className="grid gap-3">
+        {ordered.map((field, index) => {
+          const fieldCourses = courses
+            .filter((c) => c.fieldSlug === field.slug)
+            .sort((a, b) => a.stepNumber - b.stepNumber);
+          return (
+            <Card key={field.slug} className="p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-bold">{field.title}</p>
+                    <Badge variant="outline">Order {field.displayOrder}</Badge>
+                    <Badge variant="secondary">{field.targetAudience}</Badge>
+                    {!field.isActive && <Badge variant="destructive">Hidden</Badge>}
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">{field.description ?? "—"}</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" disabled={index === 0} onClick={() => void moveCourseField(field.slug, -1)}>↑</Button>
+                  <Button size="sm" variant="outline" disabled={index === ordered.length - 1} onClick={() => void moveCourseField(field.slug, 1)}>↓</Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void updateCourseField(field.slug, { isActive: !field.isActive })}
+                  >
+                    {field.isActive ? "Hide" : "Show"}
+                  </Button>
+                </div>
+              </div>
+              <div className="mt-3 space-y-2">
+                {fieldCourses.length === 0 && <p className="text-xs text-muted-foreground">No courses in this field yet.</p>}
+                {fieldCourses.map((course, courseIndex) => (
+                  <div key={course.id} className="flex items-center justify-between gap-2 rounded-md border border-border p-2">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Badge variant="secondary">Step {course.stepNumber}</Badge>
+                      <span className="font-medium">{course.title.en}</span>
+                      <Badge variant="outline">{course.difficultyLevel}</Badge>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="ghost" disabled={courseIndex === 0} onClick={() => void moveCourseStep(course.id, -1)}>↑</Button>
+                      <Button size="sm" variant="ghost" disabled={courseIndex === fieldCourses.length - 1} onClick={() => void moveCourseStep(course.id, 1)}>↓</Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function AdminCohortsPanelInner() {
   const { cohorts, courses, enrollments, assignTutorToCohort } = useApp();
   const [tutorEmailInput, setTutorEmailInput] = useState<Record<string, string>>({});
   return (
@@ -732,7 +885,7 @@ function AdminCohortsPanel() {
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-bold">{course?.title.en} · Cohort {c.number}</p>
-                    <Badge variant="outline">{c.clusterCode ?? "EAST_ANG"}</Badge>
+                    <Badge variant="outline">{(c.languageCode ?? "en").toUpperCase()} - {c.clusterCode ?? "EAST_ANG"}</Badge>
                   </div>
                   <p className="text-xs text-muted-foreground">{students.length}/{course?.cohortSize} students · {clusterLabel(c.clusterCode)} · {clusterTimezone(c.clusterCode)} · {full ? "Full" : "Filling"} · {c.completed ? "Completed" : "Active"}</p>
                   <p className="text-xs text-muted-foreground">Tutor: {c.tutorEmail ?? "unassigned"}</p>
