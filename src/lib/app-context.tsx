@@ -154,13 +154,33 @@ const SEED_PRICES: Record<string, number> = {
   cyber: 950,
 };
 
+const KIDS_DEFAULT_PRICE = 300;
+
+function metaFor(slug: string) {
+  return (
+    COURSE_FIELD_META[slug] ?? {
+      fieldSlug: undefined as string | undefined,
+      stepNumber: 1,
+      difficultyLevel: "Beginner" as DifficultyLevel,
+      targetAudience: "Adults" as TargetAudience,
+    }
+  );
+}
+
 function hydrateSeed(): LocalCourse[] {
-  return seedCourses.map((c) => ({
-    ...c,
-    basePriceUSD: SEED_PRICES[c.id] ?? 800,
-    cohortSize: 8,
-    durationWeeks: 12,
-  }));
+  return seedCourses.map((c) => {
+    const meta = metaFor(c.id);
+    return {
+      ...c,
+      basePriceUSD: SEED_PRICES[c.id] ?? (meta.targetAudience === "Kids" ? KIDS_DEFAULT_PRICE : 800),
+      cohortSize: 8,
+      durationWeeks: meta.targetAudience === "Kids" ? 8 : 12,
+      fieldSlug: meta.fieldSlug,
+      stepNumber: meta.stepNumber,
+      difficultyLevel: meta.difficultyLevel,
+      targetAudience: meta.targetAudience,
+    };
+  });
 }
 
 type CourseRow = {
@@ -181,6 +201,10 @@ type CourseRow = {
   cohort_size?: number | null;
   duration_weeks?: number | null;
   is_published?: boolean | null;
+  field_id?: string | null;
+  step_number?: number | null;
+  difficulty_level?: DifficultyLevel | null;
+  target_age_group?: TargetAudience | null;
 };
 
 type EnrollmentRow = {
