@@ -29,12 +29,14 @@ async function finalizePaidEnrollment(payload: PaymentVerificationPayload) {
     .maybeSingle();
   const cohortSize = Math.min(10, Math.max(5, Number(course?.cohort_size ?? 8)));
   const clusterCode = payload.studentData.clusterCode ?? resolveRegionalCluster(payload.studentData.country).code;
+  const languageCode = payload.studentData.languageCode ?? payload.studentData.preferredLanguage ?? "en";
 
   const { data: cohorts } = await supabase
     .from("cohorts")
     .select("id, number")
     .eq("course_id", payload.courseId)
     .eq("cluster_code", clusterCode)
+    .eq("language_code", languageCode)
     .eq("completed", false)
     .order("number", { ascending: true });
 
@@ -42,7 +44,8 @@ async function finalizePaidEnrollment(payload: PaymentVerificationPayload) {
     .from("enrollments")
     .select("id, cohort_id")
     .eq("course_id", payload.courseId)
-    .eq("cluster_code", clusterCode);
+    .eq("cluster_code", clusterCode)
+    .eq("language_code", languageCode);
 
   const counts = new Map<string, number>();
   for (const enrollment of existingEnrollments ?? []) {
@@ -55,7 +58,13 @@ async function finalizePaidEnrollment(payload: PaymentVerificationPayload) {
     const nextNumber = Math.max(0, ...(cohorts ?? []).map((cohort) => Number(cohort.number))) + 1;
     const { data: newCohort, error: cohortError } = await supabase
       .from("cohorts")
-      .insert({ course_id: payload.courseId, number: nextNumber, cluster_code: clusterCode, completed: false })
+      .insert({
+        course_id: payload.courseId,
+        number: nextNumber,
+        cluster_code: clusterCode,
+        language_code: languageCode,
+        completed: false,
+      })
       .select("id, number")
       .single();
     if (cohortError || !newCohort) return null;
@@ -81,6 +90,7 @@ async function finalizePaidEnrollment(payload: PaymentVerificationPayload) {
       preferred_language: payload.studentData.preferredLanguage,
       preferred_time: payload.studentData.preferredTime,
       cluster_code: clusterCode,
+      language_code: languageCode,
       payment_provider: payload.provider,
       transaction_reference: payload.transactionReference,
     })
