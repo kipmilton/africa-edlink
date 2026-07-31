@@ -698,18 +698,93 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const id = c.id || slugify(c.title.en);
     const course = { ...c, id };
     setCourses((prev) => [course, ...prev]);
-    supabase.from("courses").insert(courseToRow(course, id)).then(({ error }) => {
-      if (error) console.error("Failed to save course", error);
-    });
+    void supabase.from("courses").insert(courseToRow(course, id, fieldIdBySlug));
   };
 
   const updateCourse = (id: string, patch: Partial<LocalCourse>) => {
     const current = courses.find((course) => course.id === id);
     const updated = current ? { ...current, ...patch } : { ...patch, id };
     setCourses((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
-    supabase.from("courses").update(courseToRow(updated, id)).eq("slug", id).then(({ error }) => {
-      if (error) console.error("Failed to update course", error);
+    void supabase.from("courses").update(courseToRow(updated, id, fieldIdBySlug)).eq("slug", id);
+  };
+
+  const addCourseField: AppCtx["addCourseField"] = async (field) => {
+    const slug = field.slug?.trim() || slugify(field.title);
+    const nextOrder = field.displayOrder || courseFields.length + 1;
+    const record = { ...field, slug, displayOrder: nextOrder, isActive: field.isActive !== false };
+    setCourseFields((prev) => [...prev, record].sort((a, b) => a.displayOrder - b.displayOrder));
+    const { data } = await supabase
+      .from("course_fields")
+      .insert({
+        title: record.title,
+        slug,
+        description: record.description ?? "",
+        icon_name: record.iconName,
+        target_audience: record.targetAudience,
+        display_order: nextOrder,
+        is_active: record.isActive,
+      })
+      .select("id")
+      .maybeSingle();
+    if (data?.id) {
+      setCourseFields((prev) => prev.map((f) => (f.slug === slug ? { ...f, id: String(data.id) } : f)));
+    }
+  };
+
+  const updateCourseField: AppCtx["updateCourseField"] = async (slug, patch) => {
+    setCourseFields((prev) =>
+      prev.map((f) => (f.slug === slug ? { ...f, ...patch } : f)).sort((a, b) => a.displayOrder - b.displayOrder),
+    );
+    const row: Record<string, unknown> = {};
+    if (patch.title !== undefined) row.title = patch.title;
+    if (patch.description !== undefined) row.description = patch.description;
+    if (patch.iconName !== undefined) row.icon_name = patch.iconName;
+    if (patch.targetAudience !== undefined) row.target_audience = patch.targetAudience;
+    if (patch.displayOrder !== undefined) row.display_order = patch.displayOrder;
+    if (patch.isActive !== undefined) row.is_active = patch.isActive;
+    if (Object.keys(row).length === 0) return;
+    await supabase.from("course_fields").update(row).eq("slug", slug);
+  };
+
+  const moveCourseField: AppCtx["moveCourseField"] = async (slug, direction) => {
+    const ordered = [...courseFields].sort((a, b) => a.displayOrder - b.displayOrder);
+    const index = ordered.findIndex((f) => f.slug === slug);
+    const swapIndex = index + direction;
+    if (index < 0 || swapIndex < 0 || swapIndex >= ordered.length) return;
+    const a = ordered[index];
+    const b = ordered[swapIndex];
+    const reordered = ordered.map((f, i) => {
+      if (i === index) return { ...a, displayOrder: swapIndex + 1 };
+      if (i === swapIndex) return { ...b, displayOrder: index + 1 };
+      return { ...f, displayOrder: i + 1 };
     });
+    setCourseFields(reordered.sort((x, y) => x.displayOrder - y.displayOrder));
+    await Promise.all(
+      reordered.map((f) => supabase.from("course_fields").update({ display_order: f.displayOrder }).eq("slug", f.slug)),
+    );
+  };
+
+  const moveCourseStep: AppCtx["moveCourseStep"] = async (courseId, direction) => {
+    const current = courses.find((c) => c.id === courseId);
+    if (!current) return;
+    const siblings = courses
+      .filter((c) => (c.fieldSlug ?? "") === (current.fieldSlug ?? ""))
+      .sort((a, b) => a.stepNumber - b.stepNumber);
+    const index = siblings.findIndex((c) => c.id === courseId);
+    const swapIndex = index + direction;
+    if (swapIndex < 0 || swapIndex >= siblings.length) return;
+    const reordered = [...siblings];
+    [reordered[index], reordered[swapIndex]] = [reordered[swapIndex], reordered[index]];
+    const withSteps = reordered.map((c, i) => ({ ...c, stepNumber: i + 1 }));
+    setCourses((prev) =>
+      prev.map((c) => {
+        const match = withSteps.find((x) => x.id === c.id);
+        return match ? { ...c, stepNumber: match.stepNumber } : c;
+      }),
+    );
+    await Promise.all(
+      withSteps.map((c) => supabase.from("courses").update({ step_number: c.stepNumber }).eq("slug", c.id)),
+    );
   };
 
   const enroll: AppCtx["enroll"] = async (input) => {
