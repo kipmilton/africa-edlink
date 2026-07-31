@@ -27,6 +27,7 @@ async function saveDraft(payload: PaymentInitializationPayload, result: Awaited<
     country_code: payload.countryCode,
     cluster_code: payload.studentData.clusterCode,
     preferred_language: payload.studentData.preferredLanguage,
+    language_code: payload.studentData.languageCode ?? payload.studentData.preferredLanguage ?? "en",
     preferred_time: payload.studentData.preferredTime,
     payment_provider: result.provider,
     payment_amount: payload.amount,
