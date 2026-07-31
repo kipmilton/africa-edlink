@@ -227,6 +227,7 @@ type EnrollmentRow = {
   cluster_code?: ClusterCode | null;
   payment_provider?: PaymentProvider | null;
   created_at?: string | null;
+  language_code?: Lang | null;
 };
 
 type CohortRow = {
@@ -234,8 +235,20 @@ type CohortRow = {
   course_id: string;
   number: number;
   cluster_code?: ClusterCode | null;
+  language_code?: Lang | null;
   tutor_email?: string | null;
   completed?: boolean | null;
+};
+
+type CourseFieldRow = {
+  id: string;
+  title: string;
+  slug: string;
+  description?: string | null;
+  icon_name?: string | null;
+  target_audience?: TargetAudience | null;
+  display_order?: number | null;
+  is_active?: boolean | null;
 };
 
 function slugify(value: string) {
@@ -335,6 +348,7 @@ function mapEnrollmentRow(row: EnrollmentRow): Enrollment {
     preferredLanguage: row.preferred_language ?? row.language ?? undefined,
     preferredTime: row.preferred_time ?? undefined,
     clusterCode: row.cluster_code ?? resolveRegionalCluster(row.country).code,
+    languageCode: row.language_code ?? row.preferred_language ?? row.language ?? "en",
     paymentProvider: row.payment_provider ?? undefined,
     createdAt: row.created_at ?? new Date().toISOString(),
   };
@@ -532,6 +546,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [country, setCountry] = useState<string>("KE");
   const [currency, setCurrency] = useState<Currency>("KES");
   const [tutorApplications, setTutorApplications] = useState<TutorApplication[]>([]);
+  const [courseFields, setCourseFields] = useState<CourseField[]>(SEED_FIELDS);
 
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -558,7 +573,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     let mounted = true;
 
     const load = async () => {
-      const [{ data: courseRows }, { data: cohortRows }, { data: enrollmentRows }] = await Promise.all([
+      const [{ data: fieldRows }, { data: courseRows }, { data: cohortRows }, { data: enrollmentRows }] = await Promise.all([
+        supabase
+          .from("course_fields")
+          .select("*")
+          .order("display_order", { ascending: true }),
         supabase
           .from("courses")
           .select("*")
@@ -575,8 +594,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       if (!mounted) return;
 
+      const mappedFields = ((fieldRows ?? []) as CourseFieldRow[]).map((row) => ({
+        id: row.id,
+        slug: row.slug,
+        title: row.title,
+        description: row.description ?? undefined,
+        iconName: row.icon_name ?? "Shield",
+        targetAudience: row.target_audience ?? "Adults",
+        displayOrder: Number(row.display_order ?? 0),
+        isActive: row.is_active !== false,
+      }));
+      if (mappedFields.length > 0) setCourseFields(mappedFields);
+      const activeFields = mappedFields.length > 0 ? mappedFields : SEED_FIELDS;
+      const fieldSlugById = new Map(activeFields.filter((f) => f.id).map((f) => [f.id as string, f.slug]));
+
       const mappedCourses = ((courseRows ?? []) as CourseRow[])
-        .map(mapCourseRow)
+        .map((row) => mapCourseRow(row, fieldSlugById))
         .filter((course): course is LocalCourse => !!course);
       if (mappedCourses.length > 0) setCourses(mappedCourses);
 
@@ -588,6 +621,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         courseId: row.course_id,
         number: row.number,
         clusterCode: row.cluster_code ?? undefined,
+        languageCode: row.language_code ?? undefined,
         tutorEmail: row.tutor_email ?? undefined,
         completed: !!row.completed,
         studentIds: mappedEnrollments
@@ -600,6 +634,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     load();
     const channel = supabase
       .channel("catalog_enrollment_changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "course_fields" }, () => load())
       .on("postgres_changes", { event: "*", schema: "public", table: "courses" }, () => load())
       .on("postgres_changes", { event: "*", schema: "public", table: "cohorts" }, () => load())
       .on("postgres_changes", { event: "*", schema: "public", table: "enrollments" }, () => load())
