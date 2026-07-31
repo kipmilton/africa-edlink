@@ -248,10 +248,11 @@ function slugify(value: string) {
     .slice(0, 64);
 }
 
-function mapCourseRow(row: CourseRow): LocalCourse | null {
+function mapCourseRow(row: CourseRow, fieldSlugById: Map<string, string>): LocalCourse | null {
   const id = row.slug?.trim();
   if (!id || !row.title) return null;
   const seed = hydrateSeed().find((course) => course.id === id);
+  const meta = metaFor(id);
   return {
     id,
     image: row.image_url || seed?.image || "",
@@ -276,11 +277,20 @@ function mapCourseRow(row: CourseRow): LocalCourse | null {
     basePriceUSD: Number(row.base_price_usd ?? seed?.basePriceUSD ?? 800),
     cohortSize: Math.min(10, Math.max(5, Number(row.cohort_size ?? seed?.cohortSize ?? 8))),
     durationWeeks: Math.max(1, Number(row.duration_weeks ?? seed?.durationWeeks ?? 12)),
+    fieldSlug: (row.field_id ? fieldSlugById.get(row.field_id) : undefined) ?? seed?.fieldSlug ?? meta.fieldSlug,
+    stepNumber: Math.max(1, Number(row.step_number ?? seed?.stepNumber ?? meta.stepNumber)),
+    difficultyLevel: row.difficulty_level ?? seed?.difficultyLevel ?? meta.difficultyLevel,
+    targetAudience: row.target_age_group ?? seed?.targetAudience ?? meta.targetAudience,
   };
 }
 
-function courseToRow(course: LocalCourse | Partial<LocalCourse>, fallbackId?: string): CourseRow {
+function courseToRow(
+  course: LocalCourse | Partial<LocalCourse>,
+  fallbackId?: string,
+  fieldIdBySlug?: Map<string, string>,
+): CourseRow {
   const title = course.title?.en?.trim() || "New Course";
+  const fieldId = course.fieldSlug ? fieldIdBySlug?.get(course.fieldSlug) : undefined;
   return {
     slug: fallbackId ?? course.id ?? slugify(title),
     title,
@@ -299,6 +309,10 @@ function courseToRow(course: LocalCourse | Partial<LocalCourse>, fallbackId?: st
     cohort_size: Math.min(10, Math.max(5, Number(course.cohortSize ?? 8))),
     duration_weeks: Math.max(1, Math.min(104, Number(course.durationWeeks ?? 12))),
     is_published: true,
+    ...(fieldId ? { field_id: fieldId } : {}),
+    step_number: Math.max(1, Number(course.stepNumber ?? 1)),
+    difficulty_level: course.difficultyLevel ?? "Beginner",
+    target_age_group: course.targetAudience ?? "Adults",
   };
 }
 
