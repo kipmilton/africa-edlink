@@ -164,7 +164,7 @@ function StudentDash() {
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <h3 className="font-bold">{course.title.en}</h3>
-                  <p className="text-xs text-muted-foreground">Cohort {cohort.number} [{cohort.clusterCode ?? e.clusterCode ?? "EAST_ANG"}]</p>
+                  <p className="text-xs text-muted-foreground">Cohort {cohort.number} [{(cohort.languageCode ?? e.languageCode ?? "en").toUpperCase()} - {cohort.clusterCode ?? e.clusterCode ?? "EAST_ANG"}]</p>
                 </div>
                 <Badge variant={cohort.completed ? "secondary" : "default"} className="rounded-full">
                   {cohort.completed ? "Completed" : "In progress"}
@@ -258,7 +258,7 @@ function TutorDash() {
                   <Badge variant={cohort.completed ? "secondary" : "default"} className="rounded-full">
                     {cohort.completed ? "Completed" : "Active"}
                   </Badge>
-                  <Badge variant="outline">{cohort.clusterCode ?? "EAST_ANG"}</Badge>
+                  <Badge variant="outline">{(cohort.languageCode ?? "en").toUpperCase()} - {cohort.clusterCode ?? "EAST_ANG"}</Badge>
                 </div>
               </div>
               <p className="mt-2 text-xs text-muted-foreground">{clusterTimezone(cohort.clusterCode)} · {(students[0]?.preferredLanguage ?? students[0]?.language) === "fr" ? "French" : "English"}</p>
@@ -885,7 +885,7 @@ function AdminCohortsPanelInner() {
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-bold">{course?.title.en} · Cohort {c.number}</p>
-                    <Badge variant="outline">{c.clusterCode ?? "EAST_ANG"}</Badge>
+                    <Badge variant="outline">{(c.languageCode ?? "en").toUpperCase()} - {c.clusterCode ?? "EAST_ANG"}</Badge>
                   </div>
                   <p className="text-xs text-muted-foreground">{students.length}/{course?.cohortSize} students · {clusterLabel(c.clusterCode)} · {clusterTimezone(c.clusterCode)} · {full ? "Full" : "Filling"} · {c.completed ? "Completed" : "Active"}</p>
                   <p className="text-xs text-muted-foreground">Tutor: {c.tutorEmail ?? "unassigned"}</p>
