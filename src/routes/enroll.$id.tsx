@@ -382,22 +382,29 @@ function EnrollPage() {
                 </div>
               </div>
               <div>
-                <Label>Preferred Language</Label>
+                <Label>Class Language *</Label>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  You will be grouped with learners in your region who chose the same language.
+                </p>
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   {[
-                    { value: "en" as const, label: "English" },
-                    { value: "fr" as const, label: "French" },
+                    { value: "en" as const, label: "🇬🇧 English" },
+                    { value: "fr" as const, label: "🇫🇷 Français" },
                   ].map((option) => (
                     <Button
                       key={option.value}
                       type="button"
+                      aria-pressed={preferredLanguage === option.value}
                       variant={preferredLanguage === option.value ? "default" : "outline"}
-                      onClick={() => setPreferredLanguage(option.value)}
+                      onClick={() => { setPreferredLanguage(option.value); setLanguageChosen(true); }}
                     >
                       {option.label}
                     </Button>
                   ))}
                 </div>
+                <p className="mt-2 text-xs font-semibold text-primary">
+                  Cohort key: {course.title.en} · [{selectedCluster.code} - {preferredLanguage.toUpperCase()}]
+                </p>
               </div>
               <div>
                 <Label>Preferred Live Class Time</Label>
