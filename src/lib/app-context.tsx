@@ -695,6 +695,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => { saveLS(LS.certs, certificates); }, [certificates]);
 
   const addCourse = (c: LocalCourse) => {
+    const fieldIdBySlug = new Map(courseFields.filter((f) => f.id).map((f) => [f.slug, f.id as string]));
     const id = c.id || slugify(c.title.en);
     const course = { ...c, id };
     setCourses((prev) => [course, ...prev]);
@@ -702,6 +703,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const updateCourse = (id: string, patch: Partial<LocalCourse>) => {
+    const fieldIdBySlug = new Map(courseFields.filter((f) => f.id).map((f) => [f.slug, f.id as string]));
     const current = courses.find((course) => course.id === id);
     const updated = current ? { ...current, ...patch } : { ...patch, id };
     setCourses((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
@@ -926,6 +928,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         courses,
         addCourse,
         updateCourse,
+        courseFields,
+        addCourseField,
+        updateCourseField,
+        moveCourseField,
+        moveCourseStep,
         enrollments,
         cohorts,
         enroll,
