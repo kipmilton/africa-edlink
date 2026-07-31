@@ -749,6 +749,113 @@ function CourseForm({
 }
 
 function AdminCohortsPanel() {
+  return <AdminCohortsPanelInner />;
+}
+
+function AdminFieldsPanel() {
+  const { courseFields, courses, addCourseField, updateCourseField, moveCourseField, moveCourseStep } = useApp();
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [audience, setAudience] = useState<"Adults" | "Kids">("Adults");
+  const ordered = [...courseFields].sort((a, b) => a.displayOrder - b.displayOrder);
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-lg font-bold">Fields &amp; Course Sequencing</h3>
+        <p className="text-sm text-muted-foreground">
+          Create career fields, re-order how they appear in the landing page explorer, and rank courses by step.
+        </p>
+      </div>
+
+      <Card className="p-4">
+        <form
+          className="grid gap-3 sm:grid-cols-4"
+          onSubmit={async (e: FormEvent) => {
+            e.preventDefault();
+            if (title.trim().length < 3) return toast.error("Field title is too short");
+            await addCourseField({
+              title: title.trim(),
+              slug: "",
+              description: description.trim(),
+              iconName: "Shield",
+              targetAudience: audience,
+              displayOrder: ordered.length + 1,
+              isActive: true,
+            });
+            setTitle(""); setDescription("");
+            toast.success("Field created");
+          }}
+        >
+          <div><Label>Field title</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} required /></div>
+          <div className="sm:col-span-2"><Label>Description</Label><Input value={description} onChange={(e) => setDescription(e.target.value)} /></div>
+          <div className="flex items-end gap-2">
+            <Select value={audience} onValueChange={(v) => setAudience(v as "Adults" | "Kids")}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Adults">Adults</SelectItem>
+                <SelectItem value="Kids">Kids</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button type="submit"><Plus className="h-4 w-4" /></Button>
+          </div>
+        </form>
+      </Card>
+
+      <div className="grid gap-3">
+        {ordered.map((field, index) => {
+          const fieldCourses = courses
+            .filter((c) => c.fieldSlug === field.slug)
+            .sort((a, b) => a.stepNumber - b.stepNumber);
+          return (
+            <Card key={field.slug} className="p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-bold">{field.title}</p>
+                    <Badge variant="outline">Order {field.displayOrder}</Badge>
+                    <Badge variant="secondary">{field.targetAudience}</Badge>
+                    {!field.isActive && <Badge variant="destructive">Hidden</Badge>}
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">{field.description ?? "—"}</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" disabled={index === 0} onClick={() => void moveCourseField(field.slug, -1)}>↑</Button>
+                  <Button size="sm" variant="outline" disabled={index === ordered.length - 1} onClick={() => void moveCourseField(field.slug, 1)}>↓</Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void updateCourseField(field.slug, { isActive: !field.isActive })}
+                  >
+                    {field.isActive ? "Hide" : "Show"}
+                  </Button>
+                </div>
+              </div>
+              <div className="mt-3 space-y-2">
+                {fieldCourses.length === 0 && <p className="text-xs text-muted-foreground">No courses in this field yet.</p>}
+                {fieldCourses.map((course, courseIndex) => (
+                  <div key={course.id} className="flex items-center justify-between gap-2 rounded-md border border-border p-2">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Badge variant="secondary">Step {course.stepNumber}</Badge>
+                      <span className="font-medium">{course.title.en}</span>
+                      <Badge variant="outline">{course.difficultyLevel}</Badge>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="ghost" disabled={courseIndex === 0} onClick={() => void moveCourseStep(course.id, -1)}>↑</Button>
+                      <Button size="sm" variant="ghost" disabled={courseIndex === fieldCourses.length - 1} onClick={() => void moveCourseStep(course.id, 1)}>↓</Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function AdminCohortsPanelInner() {
   const { cohorts, courses, enrollments, assignTutorToCohort } = useApp();
   const [tutorEmailInput, setTutorEmailInput] = useState<Record<string, string>>({});
   return (
