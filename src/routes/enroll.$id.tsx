@@ -169,6 +169,7 @@ function EnrollPage() {
             preferredTime,
             clusterCode: selectedCluster.code,
             paymentOption: payOption,
+            languageCode: preferredLanguage,
           },
         }),
       });
@@ -194,6 +195,7 @@ function EnrollPage() {
           preferredLanguage,
           preferredTime,
           clusterCode: selectedCluster.code,
+          languageCode: preferredLanguage,
           paymentProvider: selectedPaymentProvider,
         });
       }
@@ -270,6 +272,7 @@ function EnrollPage() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(cleanEmail)) return toast.error("Enter a valid email address");
     if (!/^\+?[0-9\s-]{7,20}$/.test(cleanPhone)) return toast.error("Enter a valid phone number (7–20 digits)");
     if (!selectedCountry) return toast.error("Select your country so we can route your payment");
+    if (!preferredLanguage) return toast.error("Select the language you want to learn in");
     const amountToRecord = getAmountToRecord();
     if (typeof amountToRecord !== "number") return;
 
@@ -291,10 +294,13 @@ function EnrollPage() {
             preferredTime,
             clusterCode: selectedCluster.code,
             paymentOption: payOption,
+            languageCode: preferredLanguage,
           },
           courseId: course.id,
           courseTitle: course.title.en,
           countryCode: selectedCountry?.code ?? country,
+          language_code: preferredLanguage,
+          cluster_code: selectedCluster.code,
           amount: amountToRecord,
           currency: selectedCurrency,
           paymentOption: payOption,
