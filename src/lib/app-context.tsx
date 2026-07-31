@@ -124,6 +124,11 @@ type AppCtx = {
   courses: LocalCourse[];
   addCourse: (c: LocalCourse) => void;
   updateCourse: (id: string, patch: Partial<LocalCourse>) => void;
+  courseFields: CourseField[];
+  addCourseField: (field: Omit<CourseField, "id">) => Promise<void>;
+  updateCourseField: (slug: string, patch: Partial<CourseField>) => Promise<void>;
+  moveCourseField: (slug: string, direction: -1 | 1) => Promise<void>;
+  moveCourseStep: (courseId: string, direction: -1 | 1) => Promise<void>;
   enrollments: Enrollment[];
   cohorts: Cohort[];
   enroll: (input: Omit<Enrollment, "id" | "cohortId" | "createdAt">) => Promise<{ enrollment: Enrollment; cohort: Cohort }>;
