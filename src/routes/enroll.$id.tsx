@@ -58,6 +58,7 @@ function EnrollPage() {
   const [country, setCountry] = useState(detectedCountry || "");
   const [preferredTime, setPreferredTime] = useState<PreferredTimeSlot>("5-7");
   const [preferredLanguage, setPreferredLanguage] = useState<PreferredLanguage>("en");
+  const [languageChosen, setLanguageChosen] = useState(false);
   const [payOption, setPayOption] = useState<"full" | "partial">("full");
   const [partialAmount, setPartialAmount] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -78,8 +79,8 @@ function EnrollPage() {
   }, [selectedCountry, selectedLanguage, lang, setLang]);
 
   useEffect(() => {
-    setPreferredLanguage(selectedCluster.language);
-  }, [selectedCluster.language]);
+    if (!languageChosen) setPreferredLanguage(selectedCluster.language);
+  }, [selectedCluster.language, languageChosen]);
 
   if (!course) {
     return (
@@ -91,7 +92,13 @@ function EnrollPage() {
   }
 
   const nextCohortNumber = (() => {
-    const active = cohorts.filter((c) => c.courseId === course.id && c.clusterCode === selectedCluster.code && !c.completed);
+    const active = cohorts.filter(
+      (c) =>
+        c.courseId === course.id &&
+        c.clusterCode === selectedCluster.code &&
+        (c.languageCode ?? "en") === preferredLanguage &&
+        !c.completed,
+    );
     const last = active[active.length - 1];
     if (!last || last.studentIds.length >= course.cohortSize) return (active.length || 0) + 1;
     return last.number;
