@@ -793,15 +793,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const course = courses.find((c) => c.id === input.courseId);
     const size = Math.min(10, Math.max(5, course?.cohortSize ?? 8));
     const clusterCode = input.clusterCode ?? resolveRegionalCluster(input.country).code;
-    const courseCohorts = cohorts.filter((c) => c.courseId === input.courseId && c.clusterCode === clusterCode && !c.completed);
+    const languageCode: Lang = input.languageCode ?? input.preferredLanguage ?? input.language ?? "en";
+    // Composite grouping key = course_id + language_code + cluster_code
+    const courseCohorts = cohorts.filter(
+      (c) =>
+        c.courseId === input.courseId &&
+        c.clusterCode === clusterCode &&
+        (c.languageCode ?? "en") === languageCode &&
+        !c.completed,
+    );
     let target = courseCohorts.find((c) => c.studentIds.length < size);
     let newCohorts = cohorts;
     if (!target) {
+      const sameKeyCount = cohorts.filter(
+        (c) => c.courseId === input.courseId && c.clusterCode === clusterCode && (c.languageCode ?? "en") === languageCode,
+      ).length;
       target = {
         id: crypto.randomUUID(),
         courseId: input.courseId,
-        number: courseCohorts.length + 1,
+        number: sameKeyCount + 1,
         clusterCode,
+        languageCode,
         studentIds: [],
         completed: false,
       };
@@ -811,12 +823,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         course_id: target.courseId,
         number: target.number,
         cluster_code: target.clusterCode,
+        language_code: languageCode,
         completed: false,
       });
     }
     const enrollment: Enrollment = {
       ...input,
       clusterCode,
+      languageCode,
       id: crypto.randomUUID(),
       cohortId: target.id,
       createdAt: new Date().toISOString(),
@@ -839,10 +853,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       preferred_language: enrollment.preferredLanguage,
       preferred_time: enrollment.preferredTime,
       cluster_code: enrollment.clusterCode ?? clusterCode,
+      language_code: languageCode,
       payment_provider: enrollment.paymentProvider,
       created_at: enrollment.createdAt,
     });
-    if (error) console.error("Failed to save enrollment", error);
+    if (error) throw new Error("We could not save your enrollment. Please try again.");
     const updatedCohort: Cohort = { ...target, studentIds: [...target.studentIds, enrollment.id] };
     newCohorts = newCohorts.map((c) => (c.id === updatedCohort.id ? updatedCohort : c));
     setCohorts(newCohorts);
@@ -852,16 +867,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const assignTutorToCohort = (cohortId: string, tutorEmail: string) => {
     setCohorts((prev) => prev.map((c) => (c.id === cohortId ? { ...c, tutorEmail } : c)));
-    supabase.from("cohorts").update({ tutor_email: tutorEmail }).eq("id", cohortId).then(({ error }) => {
-      if (error) console.error("Failed to assign tutor", error);
-    });
+    void supabase.from("cohorts").update({ tutor_email: tutorEmail }).eq("id", cohortId);
   };
 
   const markCohortComplete = (cohortId: string) => {
     setCohorts((prev) => prev.map((c) => (c.id === cohortId ? { ...c, completed: true } : c)));
-    supabase.from("cohorts").update({ completed: true }).eq("id", cohortId).then(({ error }) => {
-      if (error) console.error("Failed to mark cohort complete", error);
-    });
+    void supabase.from("cohorts").update({ completed: true }).eq("id", cohortId);
   };
 
   const sendChat: AppCtx["sendChat"] = (m) =>
