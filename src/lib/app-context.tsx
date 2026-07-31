@@ -8,6 +8,13 @@ import {
   type PreferredTimeSlot,
 } from "@/lib/regional-clusters";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  COURSE_FIELD_META,
+  SEED_FIELDS,
+  type CourseField,
+  type DifficultyLevel,
+  type TargetAudience,
+} from "@/lib/course-fields";
 
 export type Lang = "en" | "fr";
 export type Role = "student" | "tutor" | "admin";
@@ -19,6 +26,10 @@ export type LocalCourse = Course & {
   cohortSize: number;
   durationWeeks: number;
   outline?: string[];
+  fieldSlug?: string;
+  stepNumber: number;
+  difficultyLevel: DifficultyLevel;
+  targetAudience: TargetAudience;
 };
 
 export type Enrollment = {
@@ -39,6 +50,7 @@ export type Enrollment = {
   preferredLanguage?: PreferredLanguage;
   preferredTime?: PreferredTimeSlot;
   clusterCode?: ClusterCode;
+  languageCode?: Lang;
   paymentProvider?: PaymentProvider;
   createdAt: string;
 };
@@ -48,6 +60,7 @@ export type Cohort = {
   courseId: string;
   number: number;
   clusterCode?: ClusterCode;
+  languageCode?: Lang;
   studentIds: string[]; // enrollment ids
   tutorEmail?: string;
   completed: boolean;
