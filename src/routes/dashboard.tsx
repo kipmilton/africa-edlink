@@ -473,6 +473,7 @@ function AdminDash() {
         <TabsTrigger value="overview">Global Overview</TabsTrigger>
         <TabsTrigger value="enrollments">Enrollments</TabsTrigger>
         <TabsTrigger value="courses">Courses</TabsTrigger>
+        <TabsTrigger value="fields">Fields</TabsTrigger>
         <TabsTrigger value="cohorts">Cohorts</TabsTrigger>
         <TabsTrigger value="tutors">Tutor Applications</TabsTrigger>
         <TabsTrigger value="graduate">Graduate School</TabsTrigger>
@@ -499,6 +500,7 @@ function AdminDash() {
       <TabsContent value="enrollments" className="mt-6"><AdminEnrollmentsPanel /></TabsContent>
       <TabsContent value="courses" className="mt-6"><AdminCoursesPanel /></TabsContent>
       <TabsContent value="cohorts" className="mt-6"><AdminCohortsPanel /></TabsContent>
+      <TabsContent value="fields" className="mt-6"><AdminFieldsPanel /></TabsContent>
       <TabsContent value="tutors" className="mt-6"><AdminTutorApplicationsPanel /></TabsContent>
       <TabsContent value="graduate" className="mt-6"><AdminGraduatePanel /></TabsContent>
     </Tabs>
