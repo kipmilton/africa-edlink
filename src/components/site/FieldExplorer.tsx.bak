@@ -1,0 +1,274 @@
+import { useMemo, useState, useEffect, useRef } from "react";
+import { Link } from "@tanstack/react-router";
+import {
+  BarChart3,
+  Brain,
+  Code2,
+  Rocket,
+  Shield,
+  GraduationCap,
+  ArrowRight,
+  ChevronRight,
+  type LucideIcon,
+} from "lucide-react";
+import { useApp } from "@/lib/app-context";
+import { formatPrice } from "@/lib/currency";
+import { stepBadge } from "@/lib/course-fields";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+
+const ICONS: Record<string, LucideIcon> = {
+  BarChart3,
+  Brain,
+  Code2,
+  Rocket,
+  Shield,
+  GraduationCap,
+};
+
+export function FieldExplorer() {
+  const { courseFields, courses, currency, lang } = useApp();
+  const fields = useMemo(
+    () => courseFields.filter((f) => f.isActive).sort((a, b) => a.displayOrder - b.displayOrder),
+    [courseFields],
+  );
+  const [activeSlug, setActiveSlug] = useState<string>(fields[0]?.slug ?? "");
+  const active = fields.find((f) => f.slug === activeSlug) ?? fields[0];
+
+  const fieldCourses = useMemo(
+    () =>
+      courses
+        .filter((c) => c.fieldSlug === active?.slug)
+        .sort((a, b) => a.stepNumber - b.stepNumber),
+    [courses, active?.slug],
+  );
+
+  // Carousel state for the centered course view
+  const trackRef = useRef<HTMLDivElement | null>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+
+  useEffect(() => {
+    setCurrentIndex(0);
+  }, [active?.slug]);
+
+  useEffect(() => {
+    if (fieldCourses.length <= 1) return;
+    const id = setInterval(() => {
+      if (!isPaused) setCurrentIndex((i) => (i + 1) % fieldCourses.length);
+    }, 4500);
+    return () => clearInterval(id);
+  }, [fieldCourses.length, isPaused]);
+
+  useEffect(() => {
+    const container = trackRef.current;
+    if (!container) return;
+    const slide = container.querySelector(`[data-index=\"${currentIndex}\"]`) as HTMLElement | null;
+    if (!slide) return;
+    const offset = slide.offsetLeft - (container.clientWidth - slide.clientWidth) / 2;
+    container.scrollTo({ left: offset, behavior: "smooth" });
+  }, [currentIndex, fieldCourses]);
+
+  function prevSlide() {
+    setCurrentIndex((i) => (i - 1 + fieldCourses.length) % fieldCourses.length);
+  }
+
+  function nextSlide() {
+    setCurrentIndex((i) => (i + 1) % fieldCourses.length);
+  }
+
+  if (fields.length === 0) return null;
+
+  return (
+    <section className="border-y border-border bg-white py-16 sm:py-20">
+      <div className="container-section">
+        <div className="max-w-2xl">
+          <p className="text-xs font-bold uppercase tracking-widest text-primary">
+            {lang === "en" ? "Explore career paths" : "Explorez les parcours"}
+          </p>
+          <h2 className="mt-3 font-heading text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
+            {lang === "en" ? "Pick a field, follow the steps" : "Choisissez un domaine, suivez les étapes"}
+          </h2>
+          <p className="mt-3 text-muted-foreground">
+            {lang === "en"
+              ? "Every field is a sequenced path — start at Step 1 and progress to advanced specialisation."
+              : "Chaque domaine est un parcours séquencé — commencez à l'étape 1 et progressez vers la spécialisation avancée."}
+          </p>
+        </div>
+
+        {/* Field carousel */}
+        <div className="mt-8">
+          <div
+            role="list"
+            aria-label={lang === "en" ? "Course fields" : "Domaines de cours"}
+            className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 py-2 scrollbar-hide"
+          >
+            {fields.map((field) => {
+              const Icon = ICONS[field.iconName] ?? Shield;
+              const isActive = field.slug === active?.slug;
+              return (
+                <article
+                  key={field.slug}
+                  role="listitem"
+                  onClick={() => setActiveSlug(field.slug)}
+                  className={cn(
+                    "snap-start w-72 shrink-0 cursor-pointer rounded-2xl border bg-linear-to-br p-0 shadow-lg transition-transform duration-200",
+                    isActive ? "scale-105 ring-2 ring-offset-2 ring-primary" : "hover:-translate-y-1",
+                  )}
+                >
+                  <div className="relative h-40 overflow-hidden rounded-t-2xl bg-secondary">
+                    <div className="absolute inset-0 flex items-center justify-center bg-linear-to-br from-primary/10 to-transparent">
+                      <Icon className="h-12 w-12 text-primary/80" />
+                    </div>
+                  </div>
+
+                  <div className="p-4">
+                    <h3 className="font-heading text-lg font-bold text-foreground">{field.title}</h3>
+                    <p className="mt-2 text-sm text-muted-foreground line-clamp-3">{field.description}</p>
+
+                    <div className="mt-4 flex items-center justify-between gap-3">
+                      <Button
+                        asChild
+                        variant={isActive ? "primary" : "ghost"}
+                        className="rounded-lg px-3 py-2 text-sm font-semibold"
+                      >
+                        <Link to={`/courses?field=${field.slug}`}>{lang === "en" ? "Learn more" : "En savoir plus"}</Link>
+                      </Button>
+
+                      <button
+                        type="button"
+                        aria-label={lang === "en" ? `Select ${field.title}` : `Sélectionner ${field.title}`}
+                        onClick={() => setActiveSlug(field.slug)}
+                        className={cn(
+                          "ml-auto inline-flex h-9 w-9 items-center justify-center rounded-lg bg-white/30 text-foreground shadow-sm",
+                          isActive ? "bg-primary text-primary-foreground" : "hover:bg-white/40",
+                        )}
+                      >
+                        <ArrowRight className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Centered course carousel */}
+        <div className="mt-10">
+          {fieldCourses.length === 0 ? (
+            <Card className="p-8 text-sm text-muted-foreground">
+              {lang === "en"
+                ? "Courses for this field are being published. Check back shortly."
+                : "Les cours de ce domaine sont en cours de publication. Revenez bientôt."}
+            </Card>
+          ) : (
+            <div className="relative h-130"> 
+              <div
+                ref={trackRef}
+                onMouseEnter={() => setIsPaused(true)}
+                onMouseLeave={() => setIsPaused(false)}
+                className="absolute inset-0 overflow-hidden"
+                aria-label={lang === "en" ? "Featured courses carousel" : "Carrousel des cours"}
+              >
+                {fieldCourses.map((course, i) => {
+                  const delta = ((i - currentIndex) + fieldCourses.length) % fieldCourses.length;
+                  // normalize delta to -1,0,1 range for nearest slides
+                  const rel = delta === fieldCourses.length - 1 ? -1 : delta > 1 ? 2 : delta;
+                  const isCenter = rel === 0;
+                  const isLeft = rel === -1;
+                  const isRight = rel === 1;
+
+                  const baseStyle: React.CSSProperties = {
+                    position: "absolute",
+                    top: "50%",
+                    left: "50%",
+                    transform: "translate(-50%, -50%)",
+                    transition: "transform 520ms cubic-bezier(.2,.9,.2,1), opacity 320ms",
+                    width: "60%",
+                    zIndex: isCenter ? 30 : isLeft || isRight ? 20 : 10,
+                    opacity: isCenter ? 1 : 0.85,
+                  };
+
+                  if (isLeft) {
+                    baseStyle.transform = "translate(-150%, -50%) scale(0.86)";
+                    baseStyle.width = "45%";
+                  } else if (isRight) {
+                    baseStyle.transform = "translate(50%, -50%) scale(0.86)";
+                    baseStyle.width = "45%";
+                  } else if (!isCenter) {
+                    // offscreen slides
+                    const off = rel > 1 ? 300 : -300;
+                    baseStyle.transform = `translate(${off}px, -50%) scale(0.7)`;
+                    baseStyle.opacity = 0;
+                  }
+
+                  return (
+                    <div key={course.id} style={baseStyle}>
+                      <Card className={cn("relative flex h-full flex-col overflow-hidden rounded-xl bg-white", isCenter ? "shadow-xl" : "shadow")}>
+                        <div className="relative h-72 w-full overflow-hidden bg-secondary">
+                          {course.image ? (
+                            <img src={course.image} alt={course.title[lang]} loading="lazy" className="h-full w-full object-cover" />
+                          ) : (
+                            <div className="h-full w-full bg-linear-to-r from-muted/30 to-transparent" />
+                          )}
+                          <span className="absolute left-4 top-4 rounded-full bg-primary px-3 py-1 text-[10px] font-black uppercase tracking-wider text-primary-foreground">
+                            {stepBadge(course.stepNumber, course.difficultyLevel)}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-1 flex-col p-6">
+                          <h3 className={cn("font-heading text-2xl font-extrabold text-foreground", isCenter ? "text-3xl" : "text-xl")}>
+                            {course.title[lang]}
+                          </h3>
+                          <p className="mt-3 text-sm text-muted-foreground line-clamp-4">{course.desc[lang]}</p>
+
+                          <div className="mt-6 flex items-center gap-4">
+                            <div className="text-xl font-bold text-primary">{formatPrice(course.basePriceUSD, currency)}</div>
+                            <div className="text-sm text-muted-foreground">{course.durationWeeks} {lang === "en" ? "weeks" : "semaines"}</div>
+                          </div>
+
+                          <div className="mt-auto flex gap-3 pt-6">
+                            <Button asChild size="lg" className="flex-1 rounded-lg">
+                              <Link to="/enroll/$id" params={{ id: course.id }}>{lang === "en" ? "Enroll" : "S'inscrire"}</Link>
+                            </Button>
+                            <Button asChild variant="outline" size="lg" className="flex-1 rounded-lg">
+                              <Link to="/courses/$id" params={{ id: course.id }}>{lang === "en" ? "Learn more" : "En savoir plus"}</Link>
+                            </Button>
+                          </div>
+                        </div>
+                      </Card>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Controls */}
+              <div className="absolute left-4 top-1/2 -translate-y-1/2">
+                <button
+                  type="button"
+                  aria-label="Previous"
+                  onClick={() => prevSlide()}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/90 shadow-md"
+                >
+                  <ChevronRight className="h-5 w-5 rotate-180 text-foreground" />
+                </button>
+              </div>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                <button
+                  type="button"
+                  aria-label="Next"
+                  onClick={() => nextSlide()}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/90 shadow-md"
+                >
+                  <ChevronRight className="h-5 w-5 text-foreground" />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}

@@ -1,4 +1,5 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
+import { useMemo } from "react";
 import { useApp } from "@/lib/app-context";
 import { formatPrice } from "@/lib/currency";
 import { Card } from "@/components/ui/card";
@@ -42,8 +43,41 @@ function CourseImage({
 }
 
 function CoursesPage() {
-  const { t, lang, courses, currency } = useApp();
+  const { t, lang, courseFields, courses, currency } = useApp();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const search = useRouterState({ select: (state) => state.location.search });
+
+  const selectedFieldSlug = useMemo(() => {
+    if (typeof search === "string") {
+      const params = new URLSearchParams(search);
+      return params.get("field") ?? params.get("category") ?? "";
+    }
+
+    if (search && typeof search === "object") {
+      const params = new URLSearchParams();
+      Object.entries(search as Record<string, unknown>).forEach(([key, value]) => {
+        if (value == null) return;
+        if (Array.isArray(value)) {
+          value.forEach((item) => params.append(key, String(item)));
+        } else {
+          params.set(key, String(value));
+        }
+      });
+      return params.get("field") ?? params.get("category") ?? "";
+    }
+
+    return "";
+  }, [search]);
+
+  const selectedField = useMemo(
+    () => courseFields.find((field) => field.slug === selectedFieldSlug),
+    [courseFields, selectedFieldSlug],
+  );
+
+  const filteredCourses = useMemo(() => {
+    if (!selectedFieldSlug) return courses;
+    return courses.filter((course) => course.fieldSlug === selectedFieldSlug);
+  }, [courses, selectedFieldSlug]);
 
   if (pathname !== "/courses") {
     return <Outlet />;
@@ -61,20 +95,37 @@ function CoursesPage() {
             Programs
           </Badge>
           <h1 className="mt-4 font-heading text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl">
-            {t("courses.title")}
+            {selectedField
+              ? `${selectedField.title}${lang === "en" ? " Courses" : " cours"}`
+              : t("courses.title")}
           </h1>
           <p className="mt-3 max-w-2xl text-lg text-muted-foreground">
-            {lang === "en"
-              ? "Industry-designed tracks delivered in English and French — built for the African tech ecosystem."
-              : "Parcours conçus par l'industrie, dispensés en anglais et en français — adaptés à l'écosystème tech africain."}
+            {selectedField
+              ? lang === "en"
+                ? `Explore ${selectedField.title.toLowerCase()} courses designed for real-world careers and practical growth.`
+                : `Découvrez les cours de ${selectedField.title.toLowerCase()} conçus pour des carrières concrètes et une montée en compétences pratique.`
+              : lang === "en"
+                ? "Industry-designed tracks delivered in English and French — built for the African tech ecosystem."
+                : "Parcours conçus par l'industrie, dispensés en anglais et en français — adaptés à l'écosystème tech africain."}
           </p>
+
+          {selectedField ? (
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <Badge variant="secondary" className="rounded-full border border-border bg-muted/50 px-3 py-1 text-sm font-semibold text-foreground">
+                {selectedField.title}
+              </Badge>
+              <Button asChild variant="outline" className="rounded-full">
+                <Link to="/courses">{lang === "en" ? "View all programs" : "Voir tous les programmes"}</Link>
+              </Button>
+            </div>
+          ) : null}
         </div>
       </section>
 
       {/* Course grid */}
       <section className="container-section py-12 sm:py-16">
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-          {courses.map((c) => (
+          {filteredCourses.map((c) => (
             <Card
               key={c.id}
               className="group flex flex-col overflow-hidden rounded-xl border bg-white p-0 transition-all duration-200 card-hover"
