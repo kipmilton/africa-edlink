@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { FileUploadField } from "@/components/site/FileUploadField";
+import { uploadFile } from "@/lib/storage";
 import {
   Users, GraduationCap, MessageSquare, BookOpen, Wallet, Plus, Award, Send, Upload, Share2, AlertTriangle, CheckCircle2, Video, XCircle, UserCheck,
 } from "lucide-react";
@@ -1056,6 +1057,25 @@ function TutorRecordings({ cohorts }: { cohorts: Cohort[] }) {
           <Input placeholder="Recording URL" type="url" value={url} onChange={(e) => setUrl(e.target.value)} required />
           <Button type="submit"><Video className="mr-2 h-4 w-4" /> Add</Button>
         </form>
+        <div className="mt-6 rounded-lg border border-dashed p-4">
+          <p className="text-sm font-semibold">Course resources</p>
+          <p className="mb-3 text-xs text-muted-foreground">
+            Upload the syllabus, lecture PDFs or reference assets for this cohort.
+          </p>
+          <FileUploadField
+            label="Upload resource (PDF or image)"
+            bucket="course-media"
+            prefix={`resources/${activeCohortId ?? "unassigned"}`}
+            value={assetUrl}
+            onChange={setAssetUrl}
+            preview={false}
+          />
+          {assetUrl ? (
+            <Button asChild size="sm" variant="outline" className="mt-2">
+              <a href={assetUrl} target="_blank" rel="noreferrer">Open uploaded resource</a>
+            </Button>
+          ) : null}
+        </div>
         <div className="mt-6 space-y-2">
           {cohortRecordings.length === 0 ? (
             <p className="text-sm text-muted-foreground">No recordings yet for this cohort.</p>
