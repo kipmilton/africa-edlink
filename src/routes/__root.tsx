@@ -14,6 +14,7 @@ import { reportSerenogError } from "../lib/serenog-error-reporting";
 import { AppProvider } from "../lib/app-context";
 import { Navbar } from "../components/site/Navbar";
 import { Footer } from "../components/site/Footer";
+import { WhatsAppFab } from "../components/site/WhatsAppFab";
 import { Toaster } from "../components/ui/sonner";
 
 function NotFoundComponent() {
@@ -136,6 +137,7 @@ function RootComponent() {
           </main>
           <Footer />
         </div>
+        <WhatsAppFab />
         <Toaster />
       </AppProvider>
     </QueryClientProvider>

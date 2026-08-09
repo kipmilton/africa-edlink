@@ -55,7 +55,7 @@ function CoursesPage() {
 
     if (search && typeof search === "object") {
       const params = new URLSearchParams();
-      Object.entries(search as Record<string, unknown>).forEach(([key, value]) => {
+      Object.entries(search as unknown as Record<string, unknown>).forEach(([key, value]) => {
         if (value == null) return;
         if (Array.isArray(value)) {
           value.forEach((item) => params.append(key, String(item)));

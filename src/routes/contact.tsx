@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useApp } from "@/lib/app-context";
 import { Mail, Phone, MessageCircle } from "lucide-react";
+import { CONTACT } from "@/lib/contact";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/contact")({
@@ -110,7 +111,9 @@ function ContactPage() {
                 <Mail className="h-5 w-5" />
               </div>
               <p className="mt-4 text-sm font-bold text-foreground">Email</p>
-              <p className="mt-1 text-sm text-muted-foreground">hello@serencog.com</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                <a href={`mailto:${CONTACT.email}`} className="hover:text-foreground">{CONTACT.email}</a>
+              </p>
             </Card>
             <Card className="rounded-xl border bg-white p-6 shadow-sm card-hover">
               <div className="grid h-10 w-10 place-items-center rounded-lg bg-primary/10 text-primary">
@@ -119,14 +122,25 @@ function ContactPage() {
               <p className="mt-4 text-sm font-bold text-foreground">
                 {T("Phone", "Téléphone")}
               </p>
-              <p className="mt-1 text-sm text-muted-foreground">+225 07 00 00 00 00</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                <a href={CONTACT.phoneHref} className="hover:text-foreground">{CONTACT.phoneDisplay}</a>
+              </p>
             </Card>
             <Card className="rounded-xl border bg-white p-6 shadow-sm card-hover">
               <div className="grid h-10 w-10 place-items-center rounded-lg bg-accent/10 text-accent">
                 <MessageCircle className="h-5 w-5" />
               </div>
               <p className="mt-4 text-sm font-bold text-foreground">WhatsApp</p>
-              <p className="mt-1 text-sm text-muted-foreground">+234 901 234 5678</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                <a
+                  href={CONTACT.whatsappHref}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="hover:text-foreground"
+                >
+                  {CONTACT.whatsappDisplay}
+                </a>
+              </p>
             </Card>
           </div>
         </div>
