@@ -674,8 +674,15 @@ function CourseForm({
         <div><Label>Course name (English)</Label><Input value={name} onChange={(e) => setName(e.target.value)} required /></div>
         <div><Label>Course name (French)</Label><Input value={nameFr} onChange={(e) => setNameFr(e.target.value)} /></div>
       </div>
-      <div><Label>Image URL</Label><Input type="url" value={image} onChange={(e) => setImage(e.target.value)} placeholder="https://..." /></div>
-      {image ? <img src={image} alt="" className="h-32 w-full rounded-md border object-cover" /> : null}
+      <FileUploadField
+        label="Course thumbnail"
+        bucket="course-media"
+        prefix="courses"
+        value={image}
+        onChange={setImage}
+        accept="image/*"
+        hint="Upload a JPG, PNG or WebP (max 15MB)."
+      />
       <div className="grid gap-2 sm:grid-cols-2">
         <div><Label>Short description (English)</Label><Textarea value={shortDesc} onChange={(e) => setShortDesc(e.target.value)} rows={2} /></div>
         <div><Label>Short description (French)</Label><Textarea value={shortDescFr} onChange={(e) => setShortDescFr(e.target.value)} rows={2} /></div>
