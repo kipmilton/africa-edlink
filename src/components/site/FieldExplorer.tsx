@@ -74,7 +74,7 @@ const FIELD_VISUALS: Record<string, FieldVisual> = {
 };
 
 export function FieldExplorer() {
-  const { courseFields, lang } = useApp();
+  const { courseFields, lang, catalogLoading } = useApp();
   const fields = useMemo(
     () => courseFields.filter((f) => f.isActive).sort((a, b) => a.displayOrder - b.displayOrder),
     [courseFields],
@@ -111,7 +111,25 @@ export function FieldExplorer() {
   const scrollPrev = () => emblaApi?.scrollPrev();
   const scrollNext = () => emblaApi?.scrollNext();
 
-  if (fields.length === 0) return null;
+  if (fields.length === 0) {
+    return (
+      <section className="border-y border-border bg-linear-to-b from-white via-slate-50 to-white py-20">
+        <div className="container-section">
+          <Card className="mx-auto max-w-2xl rounded-2xl border border-dashed bg-white p-12 text-center">
+            <p className="text-sm font-semibold text-muted-foreground">
+              {catalogLoading
+                ? lang === "en"
+                  ? "Initializing catalog…"
+                  : "Initialisation du catalogue…"
+                : lang === "en"
+                  ? "No career fields published yet."
+                  : "Aucun domaine de carrière publié pour le moment."}
+            </p>
+          </Card>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="border-y border-border bg-linear-to-b from-white via-slate-50 to-white py-20 sm:py-24">
