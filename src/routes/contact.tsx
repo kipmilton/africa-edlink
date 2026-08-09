@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useApp } from "@/lib/app-context";
 import { Mail, Phone, MessageCircle } from "lucide-react";
+import { CONTACT } from "@/lib/contact";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/contact")({
