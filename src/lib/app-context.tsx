@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { courses as seedCourses, type Course } from "@/lib/courses";
+import { type Course } from "@/lib/courses";
 import { detectCountry, getBrowserLanguage, type Currency, type PaymentProvider } from "@/lib/currency";
 import {
   resolveRegionalCluster,
@@ -9,8 +9,6 @@ import {
 } from "@/lib/regional-clusters";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  COURSE_FIELD_META,
-  SEED_FIELDS,
   type CourseField,
   type DifficultyLevel,
   type TargetAudience,
@@ -128,6 +126,7 @@ type AppCtx = {
   addCourseField: (field: Omit<CourseField, "id">) => Promise<void>;
   updateCourseField: (slug: string, patch: Partial<CourseField>) => Promise<void>;
   moveCourseField: (slug: string, direction: -1 | 1) => Promise<void>;
+  catalogLoading: boolean;
   moveCourseStep: (courseId: string, direction: -1 | 1) => Promise<void>;
   enrollments: Enrollment[];
   cohorts: Cohort[];
@@ -148,45 +147,6 @@ type AppCtx = {
 };
 
 const Ctx = createContext<AppCtx | null>(null);
-
-// USD base prices for seed courses
-const SEED_PRICES: Record<string, number> = {
-  fullstack: 900,
-  ai: 1200,
-  ml: 1100,
-  analytics: 700,
-  ds: 1000,
-  cyber: 950,
-};
-
-const KIDS_DEFAULT_PRICE = 300;
-
-function metaFor(slug: string) {
-  return (
-    COURSE_FIELD_META[slug] ?? {
-      fieldSlug: undefined as string | undefined,
-      stepNumber: 1,
-      difficultyLevel: "Beginner" as DifficultyLevel,
-      targetAudience: "Adults" as TargetAudience,
-    }
-  );
-}
-
-function hydrateSeed(): LocalCourse[] {
-  return seedCourses.map((c) => {
-    const meta = metaFor(c.id);
-    return {
-      ...c,
-      basePriceUSD: SEED_PRICES[c.id] ?? (meta.targetAudience === "Kids" ? KIDS_DEFAULT_PRICE : 800),
-      cohortSize: 8,
-      durationWeeks: meta.targetAudience === "Kids" ? 8 : 12,
-      fieldSlug: meta.fieldSlug,
-      stepNumber: meta.stepNumber,
-      difficultyLevel: meta.difficultyLevel,
-      targetAudience: meta.targetAudience,
-    };
-  });
-}
 
 type CourseRow = {
   slug?: string | null;
@@ -269,36 +229,34 @@ function slugify(value: string) {
 function mapCourseRow(row: CourseRow, fieldSlugById: Map<string, string>): LocalCourse | null {
   const id = row.slug?.trim();
   if (!id || !row.title) return null;
-  const seed = hydrateSeed().find((course) => course.id === id);
-  const meta = metaFor(id);
   return {
     id,
-    image: row.image_url || seed?.image || "",
-    delivery: row.delivery ?? seed?.delivery ?? "online",
+    image: row.image_url || "",
+    delivery: row.delivery ?? "online",
     title: { en: row.title, fr: row.title_fr || row.title },
     desc: {
-      en: row.description || seed?.desc.en || "",
-      fr: row.description_fr || row.description || seed?.desc.fr || "",
+      en: row.description || "",
+      fr: row.description_fr || row.description || "",
     },
     what: {
-      en: row.what_en || seed?.what.en || row.description || "",
-      fr: row.what_fr || row.what_en || seed?.what.fr || row.description_fr || "",
+      en: row.what_en || row.description || "",
+      fr: row.what_fr || row.what_en || row.description_fr || "",
     },
     whatsnew: {
-      en: row.whatsnew_en || seed?.whatsnew.en || "",
-      fr: row.whatsnew_fr || row.whatsnew_en || seed?.whatsnew.fr || "",
+      en: row.whatsnew_en || "",
+      fr: row.whatsnew_fr || row.whatsnew_en || "",
     },
     for: {
-      en: row.for_en || seed?.for.en || "",
-      fr: row.for_fr || row.for_en || seed?.for.fr || "",
+      en: row.for_en || "",
+      fr: row.for_fr || row.for_en || "",
     },
-    basePriceUSD: Number(row.base_price_usd ?? seed?.basePriceUSD ?? 800),
-    cohortSize: Math.min(10, Math.max(5, Number(row.cohort_size ?? seed?.cohortSize ?? 8))),
-    durationWeeks: Math.max(1, Number(row.duration_weeks ?? seed?.durationWeeks ?? 12)),
-    fieldSlug: (row.field_id ? fieldSlugById.get(row.field_id) : undefined) ?? seed?.fieldSlug ?? meta.fieldSlug,
-    stepNumber: Math.max(1, Number(row.step_number ?? seed?.stepNumber ?? meta.stepNumber)),
-    difficultyLevel: row.difficulty_level ?? seed?.difficultyLevel ?? meta.difficultyLevel,
-    targetAudience: row.target_age_group ?? seed?.targetAudience ?? meta.targetAudience,
+    basePriceUSD: Number(row.base_price_usd ?? 0),
+    cohortSize: Math.min(10, Math.max(5, Number(row.cohort_size ?? 8))),
+    durationWeeks: Math.max(1, Number(row.duration_weeks ?? 12)),
+    fieldSlug: row.field_id ? fieldSlugById.get(row.field_id) : undefined,
+    stepNumber: Math.max(1, Number(row.step_number ?? 1)),
+    difficultyLevel: row.difficulty_level ?? "Beginner",
+    targetAudience: row.target_age_group ?? "Adults",
   };
 }
 
@@ -520,16 +478,8 @@ const dict: Record<string, { en: string; fr: string }> = {
 };
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Lang>(() => {
-    try {
-      const explicit = localStorage.getItem("serenog.lang.explicit");
-      if (explicit === "1") {
-        const saved = localStorage.getItem("serenog.lang");
-        if (saved === "en" || saved === "fr") return saved;
-      }
-    } catch { /* noop */ }
-    return getBrowserLanguage();
-  });
+  // Never read browser storage during the first render — it breaks SSR hydration.
+  const [lang, setLangState] = useState<Lang>("en");
   const setLang = (l: Lang, options?: { persist?: boolean }) => {
     setLangState(l);
     try {
@@ -542,16 +492,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } catch { /* noop */ }
   };
   const [role, setRole] = useState<Role>("student");
-  const [courses, setCourses] = useState<LocalCourse[]>(() => loadLS(LS.courses, hydrateSeed()));
-  const [enrollments, setEnrollments] = useState<Enrollment[]>(() => loadLS<Enrollment[]>(LS.enrollments, []));
-  const [cohorts, setCohorts] = useState<Cohort[]>(() => loadLS<Cohort[]>(LS.cohorts, []));
-  const [chats, setChats] = useState<ChatMessage[]>(() => loadLS<ChatMessage[]>(LS.chats, []));
-  const [pendingCertifications, setPendingCertifications] = useState<PendingCertification[]>(() => loadLS<PendingCertification[]>(LS.pending, []));
-  const [certificates, setCertificates] = useState<Certificate[]>(() => loadLS<Certificate[]>(LS.certs, []));
+  // Catalog data comes exclusively from Supabase — no local seed/mock fallback.
+  const [courses, setCourses] = useState<LocalCourse[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [cohorts, setCohorts] = useState<Cohort[]>([]);
+  const [chats, setChats] = useState<ChatMessage[]>([]);
+  const [pendingCertifications, setPendingCertifications] = useState<PendingCertification[]>([]);
+  const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [country, setCountry] = useState<string>("KE");
   const [currency, setCurrency] = useState<Currency>("KES");
   const [tutorApplications, setTutorApplications] = useState<TutorApplication[]>([]);
-  const [courseFields, setCourseFields] = useState<CourseField[]>(SEED_FIELDS);
+  const [courseFields, setCourseFields] = useState<CourseField[]>([]);
+
+  // Hydrate locally-persisted, non-catalog state after mount (SSR-safe).
+  useEffect(() => {
+    setChats(loadLS<ChatMessage[]>(LS.chats, []));
+    setPendingCertifications(loadLS<PendingCertification[]>(LS.pending, []));
+    setCertificates(loadLS<Certificate[]>(LS.certs, []));
+    const explicit = (() => { try { return localStorage.getItem("serenog.lang.explicit"); } catch { return null; } })();
+    if (explicit === "1") {
+      try {
+        const saved = localStorage.getItem("serenog.lang");
+        if (saved === "en" || saved === "fr") setLangState(saved);
+      } catch { /* noop */ }
+    } else {
+      setLangState(getBrowserLanguage());
+    }
+  }, []);
 
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -586,7 +554,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         supabase
           .from("courses")
           .select("*")
-          .order("created_at", { ascending: true }),
+          .order("step_number", { ascending: true }),
         supabase
           .from("cohorts")
           .select("*")
@@ -609,14 +577,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
         displayOrder: Number(row.display_order ?? 0),
         isActive: row.is_active !== false,
       }));
-      if (mappedFields.length > 0) setCourseFields(mappedFields);
-      const activeFields = mappedFields.length > 0 ? mappedFields : SEED_FIELDS;
+      setCourseFields(mappedFields);
+      const activeFields = mappedFields;
       const fieldSlugById = new Map(activeFields.filter((f) => f.id).map((f) => [f.id as string, f.slug]));
 
       const mappedCourses = ((courseRows ?? []) as CourseRow[])
         .map((row) => mapCourseRow(row, fieldSlugById))
         .filter((course): course is LocalCourse => !!course);
-      if (mappedCourses.length > 0) setCourses(mappedCourses);
+      setCourses(mappedCourses);
+      setCatalogLoading(false);
 
       const mappedEnrollments = ((enrollmentRows ?? []) as EnrollmentRow[]).map(mapEnrollmentRow);
       setEnrollments(mappedEnrollments);
@@ -687,9 +656,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => { mounted = false; supabase.removeChannel(channel); };
   }, []);
 
-  useEffect(() => { saveLS(LS.courses, courses); }, [courses]);
-  useEffect(() => { saveLS(LS.enrollments, enrollments); }, [enrollments]);
-  useEffect(() => { saveLS(LS.cohorts, cohorts); }, [cohorts]);
   useEffect(() => { saveLS(LS.chats, chats); }, [chats]);
   useEffect(() => { saveLS(LS.pending, pendingCertifications); }, [pendingCertifications]);
   useEffect(() => { saveLS(LS.certs, certificates); }, [certificates]);
@@ -937,6 +903,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setRole,
         t,
         courses,
+        catalogLoading,
         addCourse,
         updateCourse,
         courseFields,

@@ -20,6 +20,8 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { FileUploadField } from "@/components/site/FileUploadField";
+import { uploadFile } from "@/lib/storage";
 import {
   Users, GraduationCap, MessageSquare, BookOpen, Wallet, Plus, Award, Send, Upload, Share2, AlertTriangle, CheckCircle2, Video, XCircle, UserCheck,
 } from "lucide-react";
@@ -674,8 +676,15 @@ function CourseForm({
         <div><Label>Course name (English)</Label><Input value={name} onChange={(e) => setName(e.target.value)} required /></div>
         <div><Label>Course name (French)</Label><Input value={nameFr} onChange={(e) => setNameFr(e.target.value)} /></div>
       </div>
-      <div><Label>Image URL</Label><Input type="url" value={image} onChange={(e) => setImage(e.target.value)} placeholder="https://..." /></div>
-      {image ? <img src={image} alt="" className="h-32 w-full rounded-md border object-cover" /> : null}
+      <FileUploadField
+        label="Course thumbnail"
+        bucket="course-media"
+        prefix="courses"
+        value={image}
+        onChange={setImage}
+        accept="image/*"
+        hint="Upload a JPG, PNG or WebP (max 15MB)."
+      />
       <div className="grid gap-2 sm:grid-cols-2">
         <div><Label>Short description (English)</Label><Textarea value={shortDesc} onChange={(e) => setShortDesc(e.target.value)} rows={2} /></div>
         <div><Label>Short description (French)</Label><Textarea value={shortDescFr} onChange={(e) => setShortDescFr(e.target.value)} rows={2} /></div>
@@ -918,12 +927,16 @@ function AdminCohortsPanelInner() {
 function AdminGraduatePanel() {
   const { pendingCertifications, issueCertificate, courses } = useApp();
   const [files, setFiles] = useState<Record<string, string>>({});
-  const onFile = (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
+  const onFile = async (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
-    const reader = new FileReader();
-    reader.onload = () => setFiles((s) => ({ ...s, [id]: String(reader.result) }));
-    reader.readAsDataURL(f);
+    try {
+      const { url } = await uploadFile("course-media", f, { prefix: "certificates" });
+      setFiles((s) => ({ ...s, [id]: url }));
+      toast.success("Certificate file uploaded");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Upload failed");
+    }
   };
   return (
     <div className="space-y-3">
@@ -952,7 +965,7 @@ function AdminGraduatePanel() {
                     <TableCell>
                       <label className="inline-flex items-center gap-2 cursor-pointer text-sm">
                         <Upload className="h-4 w-4" />
-                        <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => onFile(p.id, e)} />
+                        <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => void onFile(p.id, e)} />
                         {files[p.id] ? "Uploaded" : "Upload file"}
                       </label>
                     </TableCell>
@@ -977,16 +990,26 @@ type Recording = { id: string; cohortId: string; title: string; url: string; cre
 
 function TutorRecordings({ cohorts }: { cohorts: Cohort[] }) {
   const { courses } = useApp();
-  const [recordings, setRecordings] = useState<Recording[]>(() => {
-    try { return JSON.parse(localStorage.getItem("serenog.recordings") ?? "[]"); } catch { return []; }
-  });
+  const [recordings, setRecordings] = useState<Recording[]>([]);
+  const [hydrated, setHydrated] = useState(false);
   const [activeCohortId, setActiveCohortId] = useState(cohorts[0]?.id ?? "");
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
+  const [assetUrl, setAssetUrl] = useState("");
 
   useEffect(() => {
+    try {
+      setRecordings(JSON.parse(localStorage.getItem("serenog.recordings") ?? "[]"));
+    } catch {
+      setRecordings([]);
+    }
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
     localStorage.setItem("serenog.recordings", JSON.stringify(recordings));
-  }, [recordings]);
+  }, [recordings, hydrated]);
 
   useEffect(() => {
     if (!cohorts.find((c) => c.id === activeCohortId)) setActiveCohortId(cohorts[0]?.id ?? "");
@@ -1044,6 +1067,25 @@ function TutorRecordings({ cohorts }: { cohorts: Cohort[] }) {
           <Input placeholder="Recording URL" type="url" value={url} onChange={(e) => setUrl(e.target.value)} required />
           <Button type="submit"><Video className="mr-2 h-4 w-4" /> Add</Button>
         </form>
+        <div className="mt-6 rounded-lg border border-dashed p-4">
+          <p className="text-sm font-semibold">Course resources</p>
+          <p className="mb-3 text-xs text-muted-foreground">
+            Upload the syllabus, lecture PDFs or reference assets for this cohort.
+          </p>
+          <FileUploadField
+            label="Upload resource (PDF or image)"
+            bucket="course-media"
+            prefix={`resources/${activeCohortId ?? "unassigned"}`}
+            value={assetUrl}
+            onChange={setAssetUrl}
+            preview={false}
+          />
+          {assetUrl ? (
+            <Button asChild size="sm" variant="outline" className="mt-2">
+              <a href={assetUrl} target="_blank" rel="noreferrer">Open uploaded resource</a>
+            </Button>
+          ) : null}
+        </div>
         <div className="mt-6 space-y-2">
           {cohortRecordings.length === 0 ? (
             <p className="text-sm text-muted-foreground">No recordings yet for this cohort.</p>

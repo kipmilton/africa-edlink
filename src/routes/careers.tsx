@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useApp } from "@/lib/app-context";
 import { supabase } from "@/integrations/supabase/client";
+import { uploadFile, validateUpload } from "@/lib/storage";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -88,6 +89,28 @@ function CareersPage() {
   const [resumeError, setResumeError] = useState("");
   const [uploadingResume, setUploadingResume] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [existingStatus, setExistingStatus] = useState<"pending" | "approved" | "rejected" | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      const email = auth.user?.email;
+      if (!email) return;
+      const { data } = await supabase
+        .from("tutor_applications")
+        .select("status")
+        .eq("email", email.toLowerCase())
+        .order("created_at", { ascending: false })
+        .limit(1);
+      const status = data?.[0]?.status as "pending" | "approved" | "rejected" | undefined;
+      if (active && status) setExistingStatus(status);
+      if (active && auth.user?.email) setEmail((prev) => prev || auth.user!.email!);
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleResumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
@@ -96,12 +119,13 @@ function CareersPage() {
       setResume(null);
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
+    const invalid = validateUpload("tutor-cvs", file);
+    if (invalid) {
       setResume(null);
       setResumeError(
         T(
-          "File must be smaller than 5MB.",
-          "Le fichier doit être inférieur à 5 Mo.",
+          "Upload a PDF or Word document under 15MB.",
+          "Téléversez un PDF ou un document Word de moins de 15 Mo.",
         ),
       );
       return;
@@ -140,40 +164,24 @@ function CareersPage() {
 
     if (resume) {
       setUploadingResume(true);
-      // Path should be relative to the bucket (don't include bucket name twice)
-      const filePath = `${crypto.randomUUID()}_${resume.name.replace(/\s+/g, "_")}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("tutor-resumes")
-        .upload(filePath, resume, { upsert: false });
-      setUploadingResume(false);
-
-      if (uploadError) {
-        const msg = String(uploadError.message ?? "").toLowerCase();
-        // If the bucket is missing or forbidden, inform the user/admin and continue without the resume.
-        if (msg.includes("bucket") || msg.includes("does not exist") || msg.includes("forbidden") || msg.includes("unauthorized")) {
-          toast.error(
-            T(
-              "Resume upload unavailable (storage misconfigured). Your application will be submitted without the resume. Admin: ensure 'tutor-resumes' bucket exists and is writable.",
-              "Téléversement du CV indisponible (stockage mal configuré). Votre candidature sera envoyée sans CV. Admin: vérifiez que le bucket 'tutor-resumes' existe et est accessible.",
-            ),
-          );
-          // continue without resume
-        } else {
-          setResumeError(
-            T(
-              "Resume upload failed. Please try again.",
-              "Le téléchargement du CV a échoué. Veuillez réessayer.",
-            ),
-          );
-          toast.error(uploadError.message);
-          return;
-        }
-      } else {
-        const { data } = supabase.storage.from("tutor-resumes").getPublicUrl(filePath);
-        resumeUrl = data.publicUrl;
+      try {
+        const uploaded = await uploadFile("tutor-cvs", resume, {
+          prefix: preUser.user.id,
+          signed: true,
+        });
+        resumeUrl = uploaded.url;
         resumeName = resume.name;
         resumeSize = resume.size;
+      } catch (uploadError) {
+        setResumeError(
+          T(
+            "CV upload failed — your application will be sent without it.",
+            "Le téléversement du CV a échoué — votre candidature sera envoyée sans celui-ci.",
+          ),
+        );
+        toast.error(uploadError instanceof Error ? uploadError.message : String(uploadError));
+      } finally {
+        setUploadingResume(false);
       }
     }
 
@@ -246,7 +254,28 @@ function CareersPage() {
     },
   ];
 
-  if (submitted) {
+  if (submitted || existingStatus) {
+    const heading =
+      existingStatus === "approved"
+        ? T("You're approved!", "Vous êtes approuvé !")
+        : existingStatus === "rejected"
+          ? T("Application reviewed", "Candidature examinée")
+          : T("Application Received!", "Candidature Reçue !");
+    const body =
+      existingStatus === "approved"
+        ? T(
+            "Welcome to the faculty. Your tutor dashboard is now unlocked.",
+            "Bienvenue dans la faculté. Votre tableau de bord tuteur est maintenant débloqué.",
+          )
+        : existingStatus === "rejected"
+          ? T(
+              "Thank you for applying. This application was not successful — you're welcome to reapply next intake.",
+              "Merci d'avoir postulé. Cette candidature n'a pas abouti — vous pouvez postuler à la prochaine session.",
+            )
+          : T(
+              "Your application is pending review. Our academic team will reach out within 48 hours.",
+              "Votre candidature est en attente d'examen. Notre équipe académique vous contactera sous 48 heures.",
+            );
     return (
       <div className="bg-background">
         <section className="border-b border-border bg-white">
@@ -255,21 +284,20 @@ function CareersPage() {
               variant="secondary"
               className="rounded-full border border-border bg-muted/40 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
             >
-              Careers
+              {existingStatus === "pending" ? T("Pending review", "En attente d'examen") : "Careers"}
             </Badge>
             <h1 className="mt-4 font-heading text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl">
-              {T("Application Received!", "Candidature Reçue !")}
+              {heading}
             </h1>
             <p className="mt-3 max-w-2xl text-lg text-muted-foreground">
-              {T(
-                "Thank you for applying to join our faculty. Our academic team will review your application and reach out within 48 hours.",
-                "Merci d'avoir postulé pour rejoindre notre faculté. Notre équipe académique examinera votre candidature et vous contactera sous 48 heures.",
-              )}
+              {body}
             </p>
             <div className="mt-8">
               <Button asChild size="lg" className="rounded-xl px-8 py-6 text-base font-bold shadow-sm">
-                <Link to="/">
-                  {T("Back to Home", "Retour à l'accueil")}{" "}
+                <Link to={existingStatus === "approved" ? "/dashboard" : "/"}>
+                  {existingStatus === "approved"
+                    ? T("Go to dashboard", "Aller au tableau de bord")
+                    : T("Back to Home", "Retour à l'accueil")}{" "}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
