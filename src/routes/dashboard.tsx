@@ -926,12 +926,16 @@ function AdminCohortsPanelInner() {
 function AdminGraduatePanel() {
   const { pendingCertifications, issueCertificate, courses } = useApp();
   const [files, setFiles] = useState<Record<string, string>>({});
-  const onFile = (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
+  const onFile = async (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
-    const reader = new FileReader();
-    reader.onload = () => setFiles((s) => ({ ...s, [id]: String(reader.result) }));
-    reader.readAsDataURL(f);
+    try {
+      const { url } = await uploadFile("course-media", f, { prefix: "certificates" });
+      setFiles((s) => ({ ...s, [id]: url }));
+      toast.success("Certificate file uploaded");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Upload failed");
+    }
   };
   return (
     <div className="space-y-3">
@@ -960,7 +964,7 @@ function AdminGraduatePanel() {
                     <TableCell>
                       <label className="inline-flex items-center gap-2 cursor-pointer text-sm">
                         <Upload className="h-4 w-4" />
-                        <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => onFile(p.id, e)} />
+                        <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => void onFile(p.id, e)} />
                         {files[p.id] ? "Uploaded" : "Upload file"}
                       </label>
                     </TableCell>
