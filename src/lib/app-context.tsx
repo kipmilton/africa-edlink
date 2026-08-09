@@ -520,16 +520,8 @@ const dict: Record<string, { en: string; fr: string }> = {
 };
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Lang>(() => {
-    try {
-      const explicit = localStorage.getItem("serenog.lang.explicit");
-      if (explicit === "1") {
-        const saved = localStorage.getItem("serenog.lang");
-        if (saved === "en" || saved === "fr") return saved;
-      }
-    } catch { /* noop */ }
-    return getBrowserLanguage();
-  });
+  // Never read browser storage during the first render — it breaks SSR hydration.
+  const [lang, setLangState] = useState<Lang>("en");
   const setLang = (l: Lang, options?: { persist?: boolean }) => {
     setLangState(l);
     try {
@@ -542,16 +534,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } catch { /* noop */ }
   };
   const [role, setRole] = useState<Role>("student");
-  const [courses, setCourses] = useState<LocalCourse[]>(() => loadLS(LS.courses, hydrateSeed()));
-  const [enrollments, setEnrollments] = useState<Enrollment[]>(() => loadLS<Enrollment[]>(LS.enrollments, []));
-  const [cohorts, setCohorts] = useState<Cohort[]>(() => loadLS<Cohort[]>(LS.cohorts, []));
-  const [chats, setChats] = useState<ChatMessage[]>(() => loadLS<ChatMessage[]>(LS.chats, []));
-  const [pendingCertifications, setPendingCertifications] = useState<PendingCertification[]>(() => loadLS<PendingCertification[]>(LS.pending, []));
-  const [certificates, setCertificates] = useState<Certificate[]>(() => loadLS<Certificate[]>(LS.certs, []));
+  // Catalog data comes exclusively from Supabase — no local seed/mock fallback.
+  const [courses, setCourses] = useState<LocalCourse[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [cohorts, setCohorts] = useState<Cohort[]>([]);
+  const [chats, setChats] = useState<ChatMessage[]>([]);
+  const [pendingCertifications, setPendingCertifications] = useState<PendingCertification[]>([]);
+  const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [country, setCountry] = useState<string>("KE");
   const [currency, setCurrency] = useState<Currency>("KES");
   const [tutorApplications, setTutorApplications] = useState<TutorApplication[]>([]);
-  const [courseFields, setCourseFields] = useState<CourseField[]>(SEED_FIELDS);
+  const [courseFields, setCourseFields] = useState<CourseField[]>([]);
+
+  // Hydrate locally-persisted, non-catalog state after mount (SSR-safe).
+  useEffect(() => {
+    setChats(loadLS<ChatMessage[]>(LS.chats, []));
+    setPendingCertifications(loadLS<PendingCertification[]>(LS.pending, []));
+    setCertificates(loadLS<Certificate[]>(LS.certs, []));
+    const explicit = (() => { try { return localStorage.getItem("serenog.lang.explicit"); } catch { return null; } })();
+    if (explicit === "1") {
+      try {
+        const saved = localStorage.getItem("serenog.lang");
+        if (saved === "en" || saved === "fr") setLangState(saved);
+      } catch { /* noop */ }
+    } else {
+      setLangState(getBrowserLanguage());
+    }
+  }, []);
 
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -609,14 +619,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
         displayOrder: Number(row.display_order ?? 0),
         isActive: row.is_active !== false,
       }));
-      if (mappedFields.length > 0) setCourseFields(mappedFields);
-      const activeFields = mappedFields.length > 0 ? mappedFields : SEED_FIELDS;
+      setCourseFields(mappedFields);
+      const activeFields = mappedFields;
       const fieldSlugById = new Map(activeFields.filter((f) => f.id).map((f) => [f.id as string, f.slug]));
 
       const mappedCourses = ((courseRows ?? []) as CourseRow[])
         .map((row) => mapCourseRow(row, fieldSlugById))
         .filter((course): course is LocalCourse => !!course);
-      if (mappedCourses.length > 0) setCourses(mappedCourses);
+      setCourses(mappedCourses);
+      setCatalogLoading(false);
 
       const mappedEnrollments = ((enrollmentRows ?? []) as EnrollmentRow[]).map(mapEnrollmentRow);
       setEnrollments(mappedEnrollments);
@@ -687,9 +698,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => { mounted = false; supabase.removeChannel(channel); };
   }, []);
 
-  useEffect(() => { saveLS(LS.courses, courses); }, [courses]);
-  useEffect(() => { saveLS(LS.enrollments, enrollments); }, [enrollments]);
-  useEffect(() => { saveLS(LS.cohorts, cohorts); }, [cohorts]);
   useEffect(() => { saveLS(LS.chats, chats); }, [chats]);
   useEffect(() => { saveLS(LS.pending, pendingCertifications); }, [pendingCertifications]);
   useEffect(() => { saveLS(LS.certs, certificates); }, [certificates]);
