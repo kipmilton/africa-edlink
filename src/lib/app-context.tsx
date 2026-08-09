@@ -128,6 +128,7 @@ type AppCtx = {
   addCourseField: (field: Omit<CourseField, "id">) => Promise<void>;
   updateCourseField: (slug: string, patch: Partial<CourseField>) => Promise<void>;
   moveCourseField: (slug: string, direction: -1 | 1) => Promise<void>;
+  catalogLoading: boolean;
   moveCourseStep: (courseId: string, direction: -1 | 1) => Promise<void>;
   enrollments: Enrollment[];
   cohorts: Cohort[];
