@@ -63,7 +63,16 @@ function CourseImage({
   alt: string;
   className?: string;
 }) {
-  return <img src={src} alt={alt} className={cn("h-full w-full object-cover", className)} />;
+  if (!src) {
+    return (
+      <div
+        role="img"
+        aria-label={alt}
+        className={cn("h-full w-full bg-linear-to-br from-primary/15 via-accent/15 to-muted", className)}
+      />
+    );
+  }
+  return <img src={src} alt={alt} loading="lazy" className={cn("h-full w-full object-cover", className)} />;
 }
 
 /* ---------- Hero image ---------- */
@@ -306,7 +315,7 @@ function Index() {
                 key={c.id}
                 className={cn(
                   "group flex flex-col overflow-hidden rounded-xl border bg-white p-0 transition-all duration-200 card-hover",
-                  selectedCourse.id === c.id && "ring-2 ring-accent/50",
+                  selectedCourse?.id === c.id && "ring-2 ring-accent/50",
                 )}
               >
                 {/* Course image */}
