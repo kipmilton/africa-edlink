@@ -9,44 +9,33 @@ import { useAuth } from "@/lib/use-auth";
 
 /* ---------- Mega menu data ---------- */
 
-function getMegaMenus(t: (key: string) => string) {
+function getMegaMenus(t: (key: string) => string, lang: "en" | "fr", courses: { id: string; title: { en: string; fr: string } }[]) {
+  const courseItems = courses.slice(0, 5).map((course) => ({
+    to: `/courses/${course.id}`,
+    label: course.title[lang] || course.title.en,
+  }));
+
   const coursesItems = [
-    { to: "/courses", label: t("nav.mega.softwareengineering") },
-    { to: "/courses", label: t("nav.mega.ai") },
-    { to: "/courses", label: t("nav.mega.ml") },
-    { to: "/courses", label: t("nav.mega.dataanalytics") },
-    { to: "/courses", label: t("nav.mega.datascience") },
-    { to: "/courses", label: t("nav.mega.cybersecurity") },
-    { to: "/courses", label: t("nav.mega.viewall") },
+    ...courseItems,
+    { to: "/courses", label: t("nav.mega.viewall"), isViewAll: true },
   ];
 
   const aboutItems = [
     { to: "/about", label: t("nav.mega.about") },
-    { to: "/about", label: t("nav.mega.leadership") },
     { to: "/about", label: t("nav.mega.ourstory") },
     { to: "/careers", label: t("nav.mega.careers") },
     { to: "/contact", label: t("nav.mega.contact") },
   ];
 
-  const communityItems = [
-    { to: "/community", label: t("nav.mega.events") },
-    { to: "/community", label: t("nav.mega.blog") },
-    { to: "/community", label: t("nav.mega.alumni") },
-    { to: "/community", label: t("nav.mega.scholarships") },
-    { to: "/community", label: t("nav.mega.faqs") },
-    { to: "/careers", label: t("nav.mega.careers") },
-  ];
-
   return {
     courses: { label: t("nav.courses"), items: coursesItems },
     about: { label: t("nav.about"), items: aboutItems },
-    community: { label: t("nav.community"), items: communityItems },
   };
 }
 
 type MegaMenu = {
   label: string;
-  items: { to: string; label: string }[];
+  items: { to: string; label: string; isViewAll?: boolean }[];
 };
 
 /* ---------- MegaMenu dropdown ---------- */
@@ -77,12 +66,12 @@ function Dropdown({
     >
       {menu.items.map((item) => (
         <Link
-          key={item.label}
+          key={item.to}
           to={item.to}
           onClick={onClose}
           className={cn(
             "flex items-center rounded-lg px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-primary/5 hover:text-primary",
-            item.label === "View All Courses" && "mt-1 border-t border-border pt-3 text-primary font-semibold",
+            item.isViewAll && "mt-1 border-t border-border pt-3 text-primary font-semibold",
           )}
         >
           {item.label}
@@ -95,13 +84,13 @@ function Dropdown({
 /* ---------- Navbar ---------- */
 
 export function Navbar() {
-  const { t, lang, setLang } = useApp();
+  const { t, lang, setLang, courses } = useApp();
   const { user, role, signOut } = useAuth();
   const path = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [userMenu, setUserMenu] = useState(false);
-  const megaMenus = getMegaMenus(t);
+  const megaMenus = getMegaMenus(t, lang, courses);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-white/95 backdrop-blur supports-backdrop-filter:bg-white/80">
@@ -151,6 +140,9 @@ export function Navbar() {
               )}
             </div>
           ))}
+          <NavLink to="/community" active={path === "/community"} onClose={() => setActiveDropdown(null)}>
+            {t("nav.community")}
+          </NavLink>
           <NavLink to="/contact" active={path === "/contact"} onClose={() => setActiveDropdown(null)}>
             {t("nav.contact")}
           </NavLink>
@@ -236,7 +228,9 @@ export function Navbar() {
             </MobileNavLink>
             <MobileSection label={t("nav.courses")} items={megaMenus.courses.items} onClick={() => setOpen(false)} />
             <MobileSection label={t("nav.about")} items={megaMenus.about.items} onClick={() => setOpen(false)} />
-            <MobileSection label={t("nav.community")} items={megaMenus.community.items} onClick={() => setOpen(false)} />
+            <MobileNavLink to="/community" onClick={() => setOpen(false)}>
+              {t("nav.community")}
+            </MobileNavLink>
             <MobileNavLink to="/contact" onClick={() => setOpen(false)}>
               {t("nav.contact")}
             </MobileNavLink>

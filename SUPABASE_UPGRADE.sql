@@ -13,6 +13,8 @@ create table if not exists public.course_fields (
   target_audience text not null default 'Adults' check (target_audience in ('Adults','Kids')),
   display_order integer not null default 1,
   is_active boolean not null default true,
+  image_url text default '',
+  features text[] not null default '{}',
   created_at timestamptz not null default now()
 );
 
@@ -21,6 +23,9 @@ grant select, insert, update, delete on public.course_fields to authenticated;
 grant all on public.course_fields to service_role;
 
 alter table public.course_fields enable row level security;
+
+alter table public.course_fields add column if not exists image_url text default '';
+alter table public.course_fields add column if not exists features text[] not null default '{}';
 
 drop policy if exists "course_fields public read" on public.course_fields;
 create policy "course_fields public read" on public.course_fields

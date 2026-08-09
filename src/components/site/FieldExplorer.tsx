@@ -163,6 +163,9 @@ export function FieldExplorer() {
               {fields.map((field) => {
                 const Icon = ICONS[field.iconName] ?? Shield;
                 const visual = FIELD_VISUALS[field.slug] ?? FIELD_VISUALS["fullstack-web"];
+                const description = field.description || (lang === "en" ? visual.descriptionEn : visual.descriptionFr);
+                const chips = field.features && field.features.length > 0 ? field.features : visual.chips;
+                const imageSrc = field.image || visual.image;
                 const isActive = field.slug === activeSlug;
                 return (
                   <div key={field.slug} className="min-w-0 flex-[0_0_100%] px-2 md:flex-[0_0_50%] lg:flex-[0_0_calc(100%/3)]">
@@ -173,7 +176,7 @@ export function FieldExplorer() {
                       )}
                     >
                       <div className="relative h-52 overflow-hidden">
-                        <img src={visual.image} alt={field.title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" />
+                        <img src={imageSrc} alt={field.title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" />
                         <div className={cn("absolute inset-0 bg-linear-to-t from-slate-950/85 via-slate-950/20 to-transparent", visual.accent)} />
                         <div className="absolute left-4 top-4 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.25em] text-white backdrop-blur">
                           {lang === "en" ? "Specialization" : "Spécialisation"}
@@ -186,11 +189,11 @@ export function FieldExplorer() {
                       <div className="flex h-[calc(100%-13rem)] flex-col p-6">
                         <h3 className="font-heading text-xl font-bold text-foreground">{field.title}</h3>
                         <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                          {lang === "en" ? visual.descriptionEn : visual.descriptionFr}
+                          {description}
                         </p>
 
                         <div className="mt-4 flex flex-wrap gap-2">
-                          {visual.chips.map((chip) => (
+                          {chips.map((chip) => (
                             <span key={chip} className="rounded-full border border-border/70 bg-slate-50/90 px-3 py-1 text-xs font-semibold text-foreground/80">
                               {chip}
                             </span>

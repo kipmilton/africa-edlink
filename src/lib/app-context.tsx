@@ -210,6 +210,8 @@ type CourseFieldRow = {
   title: string;
   slug: string;
   description?: string | null;
+  image_url?: string | null;
+  features?: string[] | null;
   icon_name?: string | null;
   target_audience?: TargetAudience | null;
   display_order?: number | null;
@@ -445,6 +447,10 @@ const dict: Record<string, { en: string; fr: string }> = {
   "about.b2": { en: "Bilingual EN / FR delivery", fr: "Livraison bilingue EN / FR" },
   "about.b3": { en: "Pay-as-you-learn via mobile money", fr: "Paiement échelonné via mobile money" },
   "about.b4": { en: "Verifiable digital certificates", fr: "Certificats numériques vérifiables" },
+  "about.stats.learners": { en: "Learners", fr: "Apprenants" },
+  "about.stats.countries": { en: "Countries", fr: "Pays" },
+  "about.stats.cohorts": { en: "Cohorts", fr: "Cohortes" },
+  "about.imageAlt": { en: "Students in an African tech classroom", fr: "Étudiants dans une salle de classe tech africaine" },
   "about.mission": { en: "Mission", fr: "Mission" },
   "about.missiondesc": {
     en: "Equip one million African youth with deployable tech skills in the language they think in.",
@@ -572,6 +578,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         slug: row.slug,
         title: row.title,
         description: row.description ?? undefined,
+        image: row.image_url ?? undefined,
+        features: row.features ?? undefined,
         iconName: row.icon_name ?? "Shield",
         targetAudience: row.target_audience ?? "Adults",
         displayOrder: Number(row.display_order ?? 0),
@@ -687,6 +695,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         title: record.title,
         slug,
         description: record.description ?? "",
+        image_url: record.image ?? "",
+        features: record.features ?? [],
         icon_name: record.iconName,
         target_audience: record.targetAudience,
         display_order: nextOrder,
@@ -706,6 +716,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const row: Record<string, unknown> = {};
     if (patch.title !== undefined) row.title = patch.title;
     if (patch.description !== undefined) row.description = patch.description;
+    if (patch.image !== undefined) row.image_url = patch.image;
+    if (patch.features !== undefined) row.features = patch.features;
     if (patch.iconName !== undefined) row.icon_name = patch.iconName;
     if (patch.targetAudience !== undefined) row.target_audience = patch.targetAudience;
     if (patch.displayOrder !== undefined) row.display_order = patch.displayOrder;

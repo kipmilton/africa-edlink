@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useMemo } from "react";
 import { useApp } from "@/lib/app-context";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Target, Eye, Check, GraduationCap } from "lucide-react";
+import { Target, Eye, Check } from "lucide-react";
+import edtech from "@/assets/edtech.webp";
 
 export const Route = createFileRoute("/about")({
   head: () => ({
@@ -26,7 +28,23 @@ export const Route = createFileRoute("/about")({
 });
 
 function AboutPage() {
-  const { t, lang } = useApp();
+  const { t, lang, enrollments, cohorts } = useApp();
+
+  const learners = useMemo(
+    () => new Set(enrollments
+      .map((e) => e.studentEmail?.trim().toLowerCase())
+      .filter((email): email is string => Boolean(email)))
+      .size,
+    [enrollments],
+  );
+  const countries = useMemo(
+    () => new Set(enrollments
+      .map((e) => e.country?.trim().toLowerCase())
+      .filter((country): country is string => Boolean(country)))
+      .size,
+    [enrollments],
+  );
+  const cohortCount = cohorts.length;
 
   return (
     <div className="bg-background">
@@ -52,9 +70,9 @@ function AboutPage() {
       <section className="container-section -mt-8">
         <div className="grid gap-4 sm:grid-cols-3">
           {[
-            { label: lang === "en" ? "Learners" : "Apprenants", value: "0" },
-            { label: lang === "en" ? "Countries" : "Pays", value: "0" },
-            { label: lang === "en" ? "Cohorts" : "Cohortes", value: "0" },
+            { label: t("about.stats.learners"), value: String(learners) },
+            { label: t("about.stats.countries"), value: String(countries) },
+            { label: t("about.stats.cohorts"), value: String(cohortCount) },
           ].map((s) => (
             <Card
               key={s.label}
@@ -143,8 +161,12 @@ function AboutPage() {
                   : "Avec des hubs à Lagos, Abidjan, Douala, Dakar, Accra et Nairobi, notre portée couvre l'Afrique de l'Ouest, Centrale et de l'Est — offrant la même éducation de qualité en anglais et en français."}
               </p>
             </div>
-            <div className="aspect-[4/3] w-full rounded-xl bg-gradient-to-br from-primary/10 via-background to-accent/10 grid place-items-center">
-              <GraduationCap className="h-16 w-16 text-primary/30" />
+            <div className="relative overflow-hidden rounded-xl">
+              <img
+                src={edtech}
+                alt={t("about.imageAlt")}
+                className="h-full w-full object-cover"
+              />
             </div>
           </div>
         </div>

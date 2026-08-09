@@ -7,6 +7,8 @@ export type CourseField = {
   title: string;
   titleFr?: string;
   description?: string;
+  image?: string;
+  features?: string[];
   iconName: string;
   targetAudience: TargetAudience;
   displayOrder: number;
@@ -20,6 +22,8 @@ export const SEED_FIELDS: CourseField[] = [
     title: "Data Science & Analytics",
     titleFr: "Science des Données & Analyse",
     description: "From spreadsheets to production analytics and modelling.",
+    image: "",
+    features: ["Analytics", "Dashboard Design", "Career Growth"],
     iconName: "BarChart3",
     targetAudience: "Adults",
     displayOrder: 1,

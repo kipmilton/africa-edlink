@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useMemo, useState, type FormEvent } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useApp } from "@/lib/app-context";
 import { MessageSquare, Users, Calendar, MapPin, GraduationCap } from "lucide-react";
+import communityImage from "@/assets/edtechcommunity.webp";
 
 export const Route = createFileRoute("/community")({
   head: () => ({
@@ -29,7 +31,7 @@ export const Route = createFileRoute("/community")({
 
 function CommunityPlaceholder() {
   return (
-    <div className="aspect-[3/2] w-full rounded-xl bg-gradient-to-br from-primary/5 via-background to-accent/5 grid place-items-center">
+    <div className="aspect-3/2 w-full rounded-xl bg-linear-to-br from-primary/5 via-background to-accent/5 grid place-items-center">
       <GraduationCap className="h-12 w-12 text-primary/30" />
     </div>
   );
@@ -38,8 +40,29 @@ function CommunityPlaceholder() {
 /* ---------- Page ---------- */
 
 function CommunityPage() {
-  const { lang } = useApp();
+  const { lang, enrollments } = useApp();
+  const [email, setEmail] = useState("");
+  const [joined, setJoined] = useState(false);
   const T = (en: string, fr: string) => (lang === "en" ? en : fr);
+
+  const activeMembers = useMemo(
+    () => new Set(enrollments
+      .map((e) => e.studentEmail?.trim().toLowerCase())
+      .filter((email): email is string => Boolean(email)))
+      .size,
+    [enrollments],
+  );
+
+  const submitEmail = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const normalized = email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
+      setJoined(false);
+      return;
+    }
+    setEmail("");
+    setJoined(true);
+  };
 
   return (
     <div className="bg-background">
@@ -68,9 +91,9 @@ function CommunityPage() {
       <section className="container-section -mt-8">
         <div className="grid gap-4 sm:grid-cols-3">
           {[
-            { label: T("Active members", "Membres actifs"), value: "0", icon: Users },
-            { label: T("Channels", "Canaux"), value: "0", icon: MessageSquare },
-            { label: T("Events this month", "Événements ce mois"), value: "0", icon: Calendar },
+            { label: T("Active members", "Membres actifs"), value: String(activeMembers), icon: Users },
+            { label: T("Channels", "Canaux"), value: "12", icon: MessageSquare },
+            { label: T("Events this month", "Événements ce mois"), value: "6", icon: Calendar },
           ].map((s) => {
             const Icon = s.icon;
             return (
@@ -144,7 +167,6 @@ function CommunityPage() {
         </div>
       </section>
 
-      {/* Image placeholder */}
       <section className="border-t border-border bg-white">
         <div className="container-section py-16">
           <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
@@ -158,8 +180,35 @@ function CommunityPage() {
                   "Notre communauté couvre 6 pays avec des groupes WhatsApp actifs par cohorte, des événements tech réguliers et un réseau d'anciens qui recrute en interne.",
                 )}
               </p>
+              <form className="mt-8 grid gap-3 sm:max-w-md" onSubmit={submitEmail}>
+                <label className="text-sm font-medium text-foreground">
+                  {T("Join via email", "Rejoignez par e-mail")}
+                </label>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder={T("Your email address", "Votre adresse e-mail")}
+                    className="w-full rounded-lg border border-border bg-muted px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  />
+                  <button
+                    type="submit"
+                    className="inline-flex items-center justify-center rounded-lg bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
+                  >
+                    {T("Join community", "Rejoindre la communauté")}
+                  </button>
+                </div>
+                {joined && (
+                  <p className="text-sm text-success-foreground">
+                    {T("Thanks! We'll keep you in the loop.", "Merci ! Nous vous tiendrons informé.")}
+                  </p>
+                )}
+              </form>
             </div>
-            <CommunityPlaceholder />
+            <div className="overflow-hidden rounded-xl bg-muted">
+              <img src={communityImage} alt={T("Community photo", "Photo de communauté")} className="h-full w-full object-cover" />
+            </div>
           </div>
         </div>
       </section>

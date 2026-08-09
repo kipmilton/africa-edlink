@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useApp, type LocalCourse, type Role, type Cohort } from "@/lib/app-context";
+import { type CourseField } from "@/lib/course-fields";
 import { useAuth } from "@/lib/use-auth";
 import { formatPrice } from "@/lib/currency";
 import { providerLabel } from "@/lib/payment-router";
@@ -765,8 +766,69 @@ function AdminFieldsPanel() {
   const { courseFields, courses, addCourseField, updateCourseField, moveCourseField, moveCourseStep } = useApp();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [image, setImage] = useState("");
+  const [features, setFeatures] = useState("");
+  const [iconName, setIconName] = useState("Shield");
   const [audience, setAudience] = useState<"Adults" | "Kids">("Adults");
+  const [isActive, setIsActive] = useState(true);
+  const [open, setOpen] = useState(false);
+  const [editingField, setEditingField] = useState<CourseField | null>(null);
   const ordered = [...courseFields].sort((a, b) => a.displayOrder - b.displayOrder);
+
+  const resetFieldForm = () => {
+    setTitle("");
+    setDescription("");
+    setImage("");
+    setFeatures("");
+    setIconName("Shield");
+    setAudience("Adults");
+    setIsActive(true);
+  };
+
+  useEffect(() => {
+    if (!editingField) return;
+    setTitle(editingField.title);
+    setDescription(editingField.description ?? "");
+    setImage(editingField.image ?? "");
+    setFeatures((editingField.features ?? []).join(", "));
+    setIconName(editingField.iconName);
+    setAudience(editingField.targetAudience);
+    setIsActive(editingField.isActive);
+    setOpen(true);
+  }, [editingField]);
+
+  const saveField = async () => {
+    if (title.trim().length < 3) {
+      toast.error("Field title is too short");
+      return;
+    }
+
+    const payload = {
+      title: title.trim(),
+      description: description.trim(),
+      image: image.trim(),
+      features: features.split(",").map((item) => item.trim()).filter(Boolean),
+      iconName: iconName.trim() || "Shield",
+      targetAudience: audience,
+      isActive,
+    };
+
+    if (editingField) {
+      await updateCourseField(editingField.slug, payload);
+      toast.success("Field updated");
+    } else {
+      await addCourseField({
+        ...payload,
+        slug: "",
+        displayOrder: ordered.length + 1,
+      });
+      toast.success("Field created");
+    }
+
+    resetFieldForm();
+    setEditingField(null);
+    setOpen(false);
+  };
 
   return (
     <div className="space-y-4">
@@ -778,39 +840,73 @@ function AdminFieldsPanel() {
       </div>
 
       <Card className="p-4">
-        <form
-          className="grid gap-3 sm:grid-cols-4"
-          onSubmit={async (e: FormEvent) => {
-            e.preventDefault();
-            if (title.trim().length < 3) return toast.error("Field title is too short");
-            await addCourseField({
-              title: title.trim(),
-              slug: "",
-              description: description.trim(),
-              iconName: "Shield",
-              targetAudience: audience,
-              displayOrder: ordered.length + 1,
-              isActive: true,
-            });
-            setTitle(""); setDescription("");
-            toast.success("Field created");
-          }}
-        >
-          <div><Label>Field title</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} required /></div>
-          <div className="sm:col-span-2"><Label>Description</Label><Input value={description} onChange={(e) => setDescription(e.target.value)} /></div>
-          <div className="flex items-end gap-2">
-            <Select value={audience} onValueChange={(v) => setAudience(v as "Adults" | "Kids")}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Adults">Adults</SelectItem>
-                <SelectItem value="Kids">Kids</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button type="submit"><Plus className="h-4 w-4" /></Button>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h4 className="text-lg font-bold">Add new field</h4>
+            <p className="text-sm text-muted-foreground">Create a new field and publish its title, description, image, features, and audience.</p>
           </div>
-        </form>
+          <Button onClick={() => { resetFieldForm(); setEditingField(null); setOpen(true); }}><Plus className="mr-2 h-4 w-4" />Add Field</Button>
+        </div>
       </Card>
 
+      <Dialog open={open} onOpenChange={(openState) => {
+        if (!openState) {
+          setOpen(false);
+          setEditingField(null);
+          resetFieldForm();
+        }
+      }}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingField ? "Edit field" : "Add new field"}</DialogTitle>
+            <DialogDescription>
+              {editingField
+                ? "Update the field content that shows in the catalog explorer."
+                : "Upload the field details, image, title, description, and any key features here."}
+            </DialogDescription>
+          </DialogHeader>
+          <form className="grid gap-4" onSubmit={async (e: FormEvent) => { e.preventDefault(); await saveField(); }}>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div><Label>Field title</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} required /></div>
+              <div><Label>Icon name</Label><Input value={iconName} onChange={(e) => setIconName(e.target.value)} placeholder="Shield, Code2, Brain..." /></div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div><Label>Description</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} /></div>
+              <div><Label>Features (comma separated)</Label><Textarea value={features} onChange={(e) => setFeatures(e.target.value)} rows={3} /></div>
+            </div>
+            <FileUploadField
+              label="Field image"
+              bucket="course-media"
+              prefix="fields"
+              value={image}
+              onChange={setImage}
+              accept="image/*"
+              hint="Upload a JPG, PNG or WebP image for this field."
+            />
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div>
+                <Label>Target audience</Label>
+                <Select value={audience} onValueChange={(v) => setAudience(v as "Adults" | "Kids")}> 
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Adults">Adults</SelectItem>
+                    <SelectItem value="Kids">Kids</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-end">
+                <div className="flex items-center gap-2">
+                  <Checkbox checked={isActive} onCheckedChange={(checked) => setIsActive(Boolean(checked))} />
+                  <Label className="mb-0">Active</Label>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit">Save field</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
       <div className="grid gap-3">
         {ordered.map((field, index) => {
           const fieldCourses = courses
@@ -827,8 +923,15 @@ function AdminFieldsPanel() {
                     {!field.isActive && <Badge variant="destructive">Hidden</Badge>}
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">{field.description ?? "—"}</p>
+                  {field.features && field.features.length > 0 ? (
+                    <div className="mt-2 flex flex-wrap gap-1 text-xs">
+                      {field.features.map((feature) => (
+                        <Badge key={feature} variant="outline">{feature}</Badge>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button size="sm" variant="outline" disabled={index === 0} onClick={() => void moveCourseField(field.slug, -1)}>↑</Button>
                   <Button size="sm" variant="outline" disabled={index === ordered.length - 1} onClick={() => void moveCourseField(field.slug, 1)}>↓</Button>
                   <Button
@@ -838,6 +941,7 @@ function AdminFieldsPanel() {
                   >
                     {field.isActive ? "Hide" : "Show"}
                   </Button>
+                  <Button size="sm" variant="secondary" onClick={() => setEditingField(field)}>Edit</Button>
                 </div>
               </div>
               <div className="mt-3 space-y-2">
