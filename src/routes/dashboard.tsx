@@ -990,12 +990,21 @@ type Recording = { id: string; cohortId: string; title: string; url: string; cre
 
 function TutorRecordings({ cohorts }: { cohorts: Cohort[] }) {
   const { courses } = useApp();
-  const [recordings, setRecordings] = useState<Recording[]>(() => {
-    try { return JSON.parse(localStorage.getItem("serenog.recordings") ?? "[]"); } catch { return []; }
-  });
+  const [recordings, setRecordings] = useState<Recording[]>([]);
+  const [hydrated, setHydrated] = useState(false);
   const [activeCohortId, setActiveCohortId] = useState(cohorts[0]?.id ?? "");
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
+  const [assetUrl, setAssetUrl] = useState("");
+
+  useEffect(() => {
+    try {
+      setRecordings(JSON.parse(localStorage.getItem("serenog.recordings") ?? "[]"));
+    } catch {
+      setRecordings([]);
+    }
+    setHydrated(true);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem("serenog.recordings", JSON.stringify(recordings));
