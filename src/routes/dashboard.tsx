@@ -1007,8 +1007,9 @@ function TutorRecordings({ cohorts }: { cohorts: Cohort[] }) {
   }, []);
 
   useEffect(() => {
+    if (!hydrated) return;
     localStorage.setItem("serenog.recordings", JSON.stringify(recordings));
-  }, [recordings]);
+  }, [recordings, hydrated]);
 
   useEffect(() => {
     if (!cohorts.find((c) => c.id === activeCohortId)) setActiveCohortId(cohorts[0]?.id ?? "");
