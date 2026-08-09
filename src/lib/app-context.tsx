@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { courses as seedCourses, type Course } from "@/lib/courses";
+import { type Course } from "@/lib/courses";
 import { detectCountry, getBrowserLanguage, type Currency, type PaymentProvider } from "@/lib/currency";
 import {
   resolveRegionalCluster,
@@ -9,8 +9,6 @@ import {
 } from "@/lib/regional-clusters";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  COURSE_FIELD_META,
-  SEED_FIELDS,
   type CourseField,
   type DifficultyLevel,
   type TargetAudience,
@@ -149,45 +147,6 @@ type AppCtx = {
 };
 
 const Ctx = createContext<AppCtx | null>(null);
-
-// USD base prices for seed courses
-const SEED_PRICES: Record<string, number> = {
-  fullstack: 900,
-  ai: 1200,
-  ml: 1100,
-  analytics: 700,
-  ds: 1000,
-  cyber: 950,
-};
-
-const KIDS_DEFAULT_PRICE = 300;
-
-function metaFor(slug: string) {
-  return (
-    COURSE_FIELD_META[slug] ?? {
-      fieldSlug: undefined as string | undefined,
-      stepNumber: 1,
-      difficultyLevel: "Beginner" as DifficultyLevel,
-      targetAudience: "Adults" as TargetAudience,
-    }
-  );
-}
-
-function hydrateSeed(): LocalCourse[] {
-  return seedCourses.map((c) => {
-    const meta = metaFor(c.id);
-    return {
-      ...c,
-      basePriceUSD: SEED_PRICES[c.id] ?? (meta.targetAudience === "Kids" ? KIDS_DEFAULT_PRICE : 800),
-      cohortSize: 8,
-      durationWeeks: meta.targetAudience === "Kids" ? 8 : 12,
-      fieldSlug: meta.fieldSlug,
-      stepNumber: meta.stepNumber,
-      difficultyLevel: meta.difficultyLevel,
-      targetAudience: meta.targetAudience,
-    };
-  });
-}
 
 type CourseRow = {
   slug?: string | null;
