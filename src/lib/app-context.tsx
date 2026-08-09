@@ -270,36 +270,34 @@ function slugify(value: string) {
 function mapCourseRow(row: CourseRow, fieldSlugById: Map<string, string>): LocalCourse | null {
   const id = row.slug?.trim();
   if (!id || !row.title) return null;
-  const seed = hydrateSeed().find((course) => course.id === id);
-  const meta = metaFor(id);
   return {
     id,
-    image: row.image_url || seed?.image || "",
-    delivery: row.delivery ?? seed?.delivery ?? "online",
+    image: row.image_url || "",
+    delivery: row.delivery ?? "online",
     title: { en: row.title, fr: row.title_fr || row.title },
     desc: {
-      en: row.description || seed?.desc.en || "",
-      fr: row.description_fr || row.description || seed?.desc.fr || "",
+      en: row.description || "",
+      fr: row.description_fr || row.description || "",
     },
     what: {
-      en: row.what_en || seed?.what.en || row.description || "",
-      fr: row.what_fr || row.what_en || seed?.what.fr || row.description_fr || "",
+      en: row.what_en || row.description || "",
+      fr: row.what_fr || row.what_en || row.description_fr || "",
     },
     whatsnew: {
-      en: row.whatsnew_en || seed?.whatsnew.en || "",
-      fr: row.whatsnew_fr || row.whatsnew_en || seed?.whatsnew.fr || "",
+      en: row.whatsnew_en || "",
+      fr: row.whatsnew_fr || row.whatsnew_en || "",
     },
     for: {
-      en: row.for_en || seed?.for.en || "",
-      fr: row.for_fr || row.for_en || seed?.for.fr || "",
+      en: row.for_en || "",
+      fr: row.for_fr || row.for_en || "",
     },
-    basePriceUSD: Number(row.base_price_usd ?? seed?.basePriceUSD ?? 800),
-    cohortSize: Math.min(10, Math.max(5, Number(row.cohort_size ?? seed?.cohortSize ?? 8))),
-    durationWeeks: Math.max(1, Number(row.duration_weeks ?? seed?.durationWeeks ?? 12)),
-    fieldSlug: (row.field_id ? fieldSlugById.get(row.field_id) : undefined) ?? seed?.fieldSlug ?? meta.fieldSlug,
-    stepNumber: Math.max(1, Number(row.step_number ?? seed?.stepNumber ?? meta.stepNumber)),
-    difficultyLevel: row.difficulty_level ?? seed?.difficultyLevel ?? meta.difficultyLevel,
-    targetAudience: row.target_age_group ?? seed?.targetAudience ?? meta.targetAudience,
+    basePriceUSD: Number(row.base_price_usd ?? 0),
+    cohortSize: Math.min(10, Math.max(5, Number(row.cohort_size ?? 8))),
+    durationWeeks: Math.max(1, Number(row.duration_weeks ?? 12)),
+    fieldSlug: row.field_id ? fieldSlugById.get(row.field_id) : undefined,
+    stepNumber: Math.max(1, Number(row.step_number ?? 1)),
+    difficultyLevel: row.difficulty_level ?? "Beginner",
+    targetAudience: row.target_age_group ?? "Adults",
   };
 }
 
