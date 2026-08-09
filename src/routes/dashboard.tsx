@@ -20,6 +20,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { FileUploadField } from "@/components/site/FileUploadField";
 import {
   Users, GraduationCap, MessageSquare, BookOpen, Wallet, Plus, Award, Send, Upload, Share2, AlertTriangle, CheckCircle2, Video, XCircle, UserCheck,
 } from "lucide-react";
