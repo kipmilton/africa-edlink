@@ -116,10 +116,17 @@ const reviewStorageKey = "serenog-reviews";
 /* ---------- Main component ---------- */
 
 function Index() {
-  const { t, lang, courses } = useApp();
+  const { t, lang, courses, catalogLoading } = useApp();
   const { user } = useAuth();
   const [selectedId, setSelectedId] = useState(courses[0]?.id);
   const selectedCourse = courses.find((c) => c.id === selectedId) ?? courses[0];
+  const emptyCatalogMessage = catalogLoading
+    ? lang === "en"
+      ? "Initializing catalog…"
+      : "Initialisation du catalogue…"
+    : lang === "en"
+      ? "No active courses published yet."
+      : "Aucun cours actif publié pour le moment.";
   const [reviews, setReviews] = useState<Review[]>(initialReviews);
   const [activeReview, setActiveReview] = useState(0);
   const [reviewName, setReviewName] = useState("");
@@ -289,6 +296,11 @@ function Index() {
 
           {/* Course cards grid — no horizontal scroll on desktop */}
           <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {courses.length === 0 ? (
+              <Card className="rounded-xl border border-dashed bg-white p-10 text-center sm:col-span-2 lg:col-span-3">
+                <p className="text-sm font-semibold text-muted-foreground">{emptyCatalogMessage}</p>
+              </Card>
+            ) : null}
             {courses.map((c) => (
               <Card
                 key={c.id}
@@ -376,7 +388,7 @@ function Index() {
                   onClick={() => setSelectedId(c.id)}
                   className={cn(
                     "rounded-full border px-4 py-2 text-xs font-semibold transition-all",
-                    selectedCourse.id === c.id
+                    selectedCourse?.id === c.id
                       ? "border-accent bg-accent text-accent-foreground shadow-sm"
                       : "border-border bg-white text-muted-foreground hover:border-primary hover:text-foreground",
                   )}
@@ -387,6 +399,7 @@ function Index() {
             </div>
           </div>
 
+          {selectedCourse ? (
           <Card className="rounded-xl border bg-white p-6 shadow-sm">
             <Accordion type="single" collapsible defaultValue="q1">
               <AccordionItem value="q1">
@@ -425,6 +438,11 @@ function Index() {
               </AccordionItem>
             </Accordion>
           </Card>
+          ) : (
+            <Card className="rounded-xl border border-dashed bg-white p-10 text-center shadow-sm">
+              <p className="text-sm font-semibold text-muted-foreground">{emptyCatalogMessage}</p>
+            </Card>
+          )}
         </div>
       </section>
 
