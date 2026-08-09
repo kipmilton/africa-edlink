@@ -39,11 +39,20 @@ function CourseImage({
   alt: string;
   className?: string;
 }) {
-  return <img src={src} alt={alt} className={cn("h-full w-full object-cover", className)} />;
+  if (!src) {
+    return (
+      <div
+        role="img"
+        aria-label={alt}
+        className={cn("h-full w-full bg-linear-to-br from-primary/15 via-accent/15 to-muted", className)}
+      />
+    );
+  }
+  return <img src={src} alt={alt} loading="lazy" className={cn("h-full w-full object-cover", className)} />;
 }
 
 function CoursesPage() {
-  const { t, lang, courseFields, courses, currency } = useApp();
+  const { t, lang, courseFields, courses, currency, catalogLoading } = useApp();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const search = useRouterState({ select: (state) => state.location.search });
 
@@ -124,6 +133,19 @@ function CoursesPage() {
 
       {/* Course grid */}
       <section className="container-section py-12 sm:py-16">
+        {filteredCourses.length === 0 ? (
+          <Card className="rounded-xl border border-dashed bg-white p-12 text-center">
+            <p className="text-sm font-semibold text-muted-foreground">
+              {catalogLoading
+                ? lang === "en"
+                  ? "Initializing catalog…"
+                  : "Initialisation du catalogue…"
+                : lang === "en"
+                  ? "No active courses published in this field yet."
+                  : "Aucun cours actif publié dans ce domaine pour le moment."}
+            </p>
+          </Card>
+        ) : null}
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
           {filteredCourses.map((c) => (
             <Card
