@@ -945,6 +945,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setRole,
         t,
         courses,
+        catalogLoading,
         addCourse,
         updateCourse,
         courseFields,
