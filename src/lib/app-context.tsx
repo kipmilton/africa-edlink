@@ -554,7 +554,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         supabase
           .from("courses")
           .select("*")
-          .order("created_at", { ascending: true }),
+          .order("step_number", { ascending: true }),
         supabase
           .from("cohorts")
           .select("*")
