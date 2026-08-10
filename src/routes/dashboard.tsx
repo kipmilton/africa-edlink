@@ -324,7 +324,319 @@ function TutorDash() {
       <TabsContent value="recordings" className="mt-6">
         <TutorRecordings cohorts={myCohorts} />
       </TabsContent>
+
+      <TabsContent value="profile" className="mt-6">
+        <TutorProfilePanel />
+      </TabsContent>
     </Tabs>
+  );
+}
+
+/* ================== TEAM PROFILES ================== */
+function TutorProfilePanel() {
+  const { user } = useAuth();
+  const { profiles, loading, createProfile, updateProfile } = useTeam();
+  const mine = profiles.find(
+    (p) => (p.userId && p.userId === user?.id) || (p.email ?? "").toLowerCase() === (user?.email ?? "").toLowerCase(),
+  );
+
+  const [fullName, setFullName] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [experience, setExperience] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    if (loading || hydrated) return;
+    setFullName(mine?.fullName ?? user?.fullName ?? "");
+    setImageUrl(mine?.imageUrl ?? "");
+    setExperience(mine?.experience ?? "");
+    setHydrated(true);
+  }, [loading, hydrated, mine, user?.fullName]);
+
+  const save = async () => {
+    if (fullName.trim().length < 2) return toast.error("Enter your full name");
+    setSaving(true);
+    try {
+      if (mine) {
+        await updateProfile(mine.id, { fullName: fullName.trim(), imageUrl, experience });
+        toast.success("Profile updated");
+      } else {
+        await createProfile({
+          fullName: fullName.trim(),
+          role: "Tutor",
+          kind: "tutor",
+          imageUrl,
+          experience,
+          email: user?.email ?? null,
+          userId: user?.id ?? null,
+          displayOrder: 50,
+          isActive: true,
+        });
+        toast.success("Profile published");
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save your profile");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card className="max-w-2xl p-6">
+      <h3 className="text-lg font-bold">{mine ? "Edit your public profile" : "Create your public profile"}</h3>
+      <p className="mt-1 text-sm text-muted-foreground">
+        This appears on the public “Our Team” page. Your role is fixed as <strong>Tutor</strong>.
+      </p>
+      <div className="mt-5 grid gap-4">
+        <div className="grid gap-2">
+          <Label>Full name</Label>
+          <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="e.g. Joseph Milton" />
+        </div>
+        <div className="grid gap-2">
+          <Label>Role</Label>
+          <Input value="Tutor" readOnly disabled />
+        </div>
+        <FileUploadField
+          label="Profile photo"
+          bucket="course-media"
+          prefix="team"
+          accept="image/*"
+          value={imageUrl}
+          onChange={setImageUrl}
+          hint="Square images look best."
+        />
+        <div className="grid gap-2">
+          <Label>Experience &amp; bio</Label>
+          <Textarea
+            rows={5}
+            value={experience}
+            onChange={(e) => setExperience(e.target.value)}
+            placeholder="Tell learners about your teaching and industry experience."
+          />
+        </div>
+        <div>
+          <Button onClick={() => void save()} disabled={saving}>
+            {saving ? "Saving…" : mine ? "Save changes" : "Publish profile"}
+          </Button>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function AdminTeamPanel() {
+  const { profiles, loading, createProfile, updateProfile, deleteProfile } = useTeam();
+  const management = profiles.filter((p) => p.kind === "management");
+  const tutors = profiles.filter((p) => p.kind === "tutor");
+  const [editing, setEditing] = useState<TeamProfile | null>(null);
+  const [creating, setCreating] = useState(false);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="text-lg font-bold">Management team profiles</h3>
+          <p className="text-sm text-muted-foreground">
+            Publish leadership and staff profiles shown on the public “Our Team” page.
+          </p>
+        </div>
+        <Button onClick={() => { setEditing(null); setCreating(true); }}>
+          <Plus className="mr-2 h-4 w-4" /> Add team member
+        </Button>
+      </div>
+
+      {loading ? (
+        <Card className="p-8 text-center text-sm text-muted-foreground">Loading team profiles…</Card>
+      ) : management.length === 0 ? (
+        <Card className="p-8 text-center text-sm text-muted-foreground">
+          No management profiles yet. Add your first team member.
+        </Card>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {management.map((member) => (
+            <Card key={member.id} className="overflow-hidden">
+              <div className="h-40 w-full bg-muted">
+                {member.imageUrl ? (
+                  <img src={member.imageUrl} alt={member.fullName} className="h-full w-full object-cover" />
+                ) : (
+                  <div className="grid h-full place-items-center text-xs text-muted-foreground">No photo</div>
+                )}
+              </div>
+              <div className="p-4">
+                <p className="font-bold">{member.fullName}</p>
+                <p className="text-sm text-primary">{member.role}</p>
+                <p className="mt-2 line-clamp-3 text-xs text-muted-foreground">{member.experience}</p>
+                <div className="mt-3 flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => { setCreating(false); setEditing(member); }}>Edit</Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-destructive"
+                    onClick={async () => {
+                      try {
+                        await deleteProfile(member.id);
+                        toast.success("Profile removed");
+                      } catch (error) {
+                        toast.error(error instanceof Error ? error.message : "Could not remove profile");
+                      }
+                    }}
+                  >
+                    Delete
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <div>
+        <h3 className="text-lg font-bold">Tutor profiles</h3>
+        <p className="text-sm text-muted-foreground">Tutors manage these from their own dashboard.</p>
+        {tutors.length === 0 ? (
+          <Card className="mt-3 p-6 text-center text-sm text-muted-foreground">
+            No tutor has published a profile yet.
+          </Card>
+        ) : (
+          <Card className="mt-3 overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Visible</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {tutors.map((tutor) => (
+                  <TableRow key={tutor.id}>
+                    <TableCell className="font-medium">{tutor.fullName}</TableCell>
+                    <TableCell>{tutor.role}</TableCell>
+                    <TableCell>
+                      <Badge variant={tutor.isActive ? "default" : "secondary"}>{tutor.isActive ? "Live" : "Hidden"}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={async () => {
+                          try {
+                            await updateProfile(tutor.id, { isActive: !tutor.isActive });
+                          } catch (error) {
+                            toast.error(error instanceof Error ? error.message : "Could not update profile");
+                          }
+                        }}
+                      >
+                        {tutor.isActive ? "Hide" : "Show"}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+        )}
+      </div>
+
+      {(creating || editing) && (
+        <TeamMemberDialog
+          initial={editing}
+          onClose={() => { setCreating(false); setEditing(null); }}
+          onSave={async (payload) => {
+            if (editing) await updateProfile(editing.id, payload);
+            else await createProfile({ ...payload, kind: "management" });
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function TeamMemberDialog({
+  initial,
+  onClose,
+  onSave,
+}: {
+  initial: TeamProfile | null;
+  onClose: () => void;
+  onSave: (payload: TeamPayload) => Promise<void>;
+}) {
+  const [fullName, setFullName] = useState(initial?.fullName ?? "");
+  const [role, setRole] = useState(initial?.role ?? "");
+  const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
+  const [experience, setExperience] = useState(initial?.experience ?? "");
+  const [displayOrder, setDisplayOrder] = useState<number>(initial?.displayOrder ?? 1);
+  const [saving, setSaving] = useState(false);
+
+  const submit = async () => {
+    if (fullName.trim().length < 2) return toast.error("Enter the member's full name");
+    if (role.trim().length < 2) return toast.error("Enter a role, e.g. Project Manager");
+    setSaving(true);
+    try {
+      await onSave({
+        fullName: fullName.trim(),
+        role: role.trim(),
+        kind: "management",
+        imageUrl,
+        experience,
+        displayOrder,
+        isActive: true,
+      });
+      toast.success(initial ? "Profile updated" : "Team member added");
+      onClose();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save profile");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{initial ? "Edit team member" : "Add team member"}</DialogTitle>
+          <DialogDescription>Profiles appear on the public “Our Team” page.</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4">
+          <div className="grid gap-2">
+            <Label>Full name</Label>
+            <Input value={fullName} onChange={(e) => setFullName(e.target.value)} />
+          </div>
+          <div className="grid gap-2">
+            <Label>Role</Label>
+            <Input value={role} onChange={(e) => setRole(e.target.value)} placeholder="e.g. Project Manager" />
+          </div>
+          <FileUploadField
+            label="Profile photo"
+            bucket="course-media"
+            prefix="team"
+            accept="image/*"
+            value={imageUrl}
+            onChange={setImageUrl}
+          />
+          <div className="grid gap-2">
+            <Label>Experience</Label>
+            <Textarea rows={5} value={experience} onChange={(e) => setExperience(e.target.value)} />
+          </div>
+          <div className="grid gap-2">
+            <Label>Display order</Label>
+            <Input
+              type="number"
+              min={1}
+              value={displayOrder}
+              onChange={(e) => setDisplayOrder(Number(e.target.value) || 1)}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={() => void submit()} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
