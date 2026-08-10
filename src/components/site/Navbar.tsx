@@ -22,7 +22,7 @@ function getMegaMenus(t: (key: string) => string, lang: "en" | "fr", courses: { 
 
   const aboutItems = [
     { to: "/about", label: t("nav.mega.about") },
-    { to: "/about", label: t("nav.mega.ourstory") },
+    { to: "/team", label: t("nav.team") },
     { to: "/careers", label: t("nav.mega.careers") },
     { to: "/contact", label: t("nav.mega.contact") },
   ];
@@ -143,6 +143,9 @@ export function Navbar() {
           <NavLink to="/community" active={path === "/community"} onClose={() => setActiveDropdown(null)}>
             {t("nav.community")}
           </NavLink>
+          <NavLink to="/team" active={path === "/team"} onClose={() => setActiveDropdown(null)}>
+            {t("nav.team")}
+          </NavLink>
           <NavLink to="/contact" active={path === "/contact"} onClose={() => setActiveDropdown(null)}>
             {t("nav.contact")}
           </NavLink>
@@ -230,6 +233,9 @@ export function Navbar() {
             <MobileSection label={t("nav.about")} items={megaMenus.about.items} onClick={() => setOpen(false)} />
             <MobileNavLink to="/community" onClick={() => setOpen(false)}>
               {t("nav.community")}
+            </MobileNavLink>
+            <MobileNavLink to="/team" onClick={() => setOpen(false)}>
+              {t("nav.team")}
             </MobileNavLink>
             <MobileNavLink to="/contact" onClick={() => setOpen(false)}>
               {t("nav.contact")}
