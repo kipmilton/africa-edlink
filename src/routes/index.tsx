@@ -486,6 +486,33 @@ function Index() {
         </div>
       </section>
 
+      {/* ===== OUR TEAM ===== */}
+      <section id="our-team" className="border-t border-border bg-white py-20">
+        <div className="container-section">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <Badge variant="secondary" className="rounded-full border border-border bg-muted/40 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                {t("nav.team")}
+              </Badge>
+              <h2 className="mt-3 font-heading text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
+                {lang === "fr" ? "Rencontrez notre équipe" : "Meet our team"}
+              </h2>
+              <p className="mt-2 max-w-xl text-muted-foreground">
+                {lang === "fr"
+                  ? "Une équipe de direction et des formateurs bilingues dédiés à votre réussite."
+                  : "A management team and bilingual tutors dedicated to your success."}
+              </p>
+            </div>
+            <Link to="/team" className="inline-flex items-center gap-1 text-sm font-semibold text-primary">
+              {lang === "fr" ? "Voir toute l'équipe" : "View the whole team"} <ChevronRight className="h-4 w-4" />
+            </Link>
+          </div>
+          <div className="mt-8">
+            <TeamGrid limit={3} />
+          </div>
+        </div>
+      </section>
+
       {/* ===== REVIEWS ===== */}
       <section id="reviews" className="border-t border-border bg-white py-20">
         <div className="container-section grid gap-10 lg:grid-cols-[1.1fr_0.9fr]">
