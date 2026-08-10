@@ -149,10 +149,7 @@ function EnrollPage() {
     if (typeof amountToRecord !== "number") return;
     setVerifying(true);
     try {
-      const verifyResponse = await fetch("/api/payments/verify", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
+      const verification = await verifyPayment({
           transactionReference,
           provider: selectedPaymentProvider,
           courseId: course.id,
@@ -172,10 +169,8 @@ function EnrollPage() {
             paymentOption: payOption,
             languageCode: preferredLanguage,
           },
-        }),
       });
-      const verification = (await verifyResponse.json()) as { success?: boolean; cohortId?: string };
-      if (!verifyResponse.ok || !verification.success) {
+      if (!verification.success) {
         toast.error("Payment could not be verified. Please try again.");
         return;
       }
