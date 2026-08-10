@@ -346,6 +346,7 @@ const dict: Record<string, { en: string; fr: string }> = {
   "nav.courses": { en: "Courses", fr: "Cours" },
   "nav.about": { en: "About", fr: "À propos" },
   "nav.community": { en: "Community", fr: "Communauté" },
+  "nav.team": { en: "Our Team", fr: "Notre équipe" },
   "nav.contact": { en: "Contact Us", fr: "Contactez-nous" },
   "nav.dashboard": { en: "Dashboard", fr: "Tableau de bord" },
   "nav.signin": { en: "Sign In", fr: "Connexion" },
