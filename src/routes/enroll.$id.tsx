@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { COUNTRY_OPTIONS, convertUSDToCurrency, formatPrice, type PaymentProvider } from "@/lib/currency";
 import { providerLabel, resolvePaymentRoute, type PaymentInitializationResult } from "@/lib/payment-router";
+import { initializePayment, verifyPayment } from "@/lib/payments-client";
 import {
   PREFERRED_TIME_OPTIONS,
   clusterLabel,

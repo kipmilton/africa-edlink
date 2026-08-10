@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TeamRouteImport } from './routes/team'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CoursesRouteImport } from './routes/courses'
@@ -24,6 +25,11 @@ import { Route as CoursesIdRouteImport } from './routes/courses.$id'
 import { Route as ApiPaymentsVerifyRouteImport } from './routes/api.payments.verify'
 import { Route as ApiPaymentsInitializeRouteImport } from './routes/api.payments.initialize'
 
+const TeamRoute = TeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
@@ -105,6 +111,7 @@ export interface FileRoutesByFullPath {
   '/courses': typeof CoursesRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/team': typeof TeamRoute
   '/courses/$id': typeof CoursesIdRoute
   '/enroll/$id': typeof EnrollIdRoute
   '/verify/$id': typeof VerifyIdRoute
@@ -121,6 +128,7 @@ export interface FileRoutesByTo {
   '/courses': typeof CoursesRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/team': typeof TeamRoute
   '/courses/$id': typeof CoursesIdRoute
   '/enroll/$id': typeof EnrollIdRoute
   '/verify/$id': typeof VerifyIdRoute
@@ -138,6 +146,7 @@ export interface FileRoutesById {
   '/courses': typeof CoursesRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/team': typeof TeamRoute
   '/courses/$id': typeof CoursesIdRoute
   '/enroll/$id': typeof EnrollIdRoute
   '/verify/$id': typeof VerifyIdRoute
@@ -156,6 +165,7 @@ export interface FileRouteTypes {
     | '/courses'
     | '/dashboard'
     | '/sitemap.xml'
+    | '/team'
     | '/courses/$id'
     | '/enroll/$id'
     | '/verify/$id'
@@ -172,6 +182,7 @@ export interface FileRouteTypes {
     | '/courses'
     | '/dashboard'
     | '/sitemap.xml'
+    | '/team'
     | '/courses/$id'
     | '/enroll/$id'
     | '/verify/$id'
@@ -188,6 +199,7 @@ export interface FileRouteTypes {
     | '/courses'
     | '/dashboard'
     | '/sitemap.xml'
+    | '/team'
     | '/courses/$id'
     | '/enroll/$id'
     | '/verify/$id'
@@ -205,6 +217,7 @@ export interface RootRouteChildren {
   CoursesRoute: typeof CoursesRouteWithChildren
   DashboardRoute: typeof DashboardRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  TeamRoute: typeof TeamRoute
   EnrollIdRoute: typeof EnrollIdRoute
   VerifyIdRoute: typeof VerifyIdRoute
   ApiPaymentsInitializeRoute: typeof ApiPaymentsInitializeRoute
@@ -213,6 +226,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/team': {
+      id: '/team'
+      path: '/team'
+      fullPath: '/team'
+      preLoaderRoute: typeof TeamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sitemap.xml': {
       id: '/sitemap.xml'
       path: '/sitemap.xml'
@@ -335,6 +355,7 @@ const rootRouteChildren: RootRouteChildren = {
   CoursesRoute: CoursesRouteWithChildren,
   DashboardRoute: DashboardRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  TeamRoute: TeamRoute,
   EnrollIdRoute: EnrollIdRoute,
   VerifyIdRoute: VerifyIdRoute,
   ApiPaymentsInitializeRoute: ApiPaymentsInitializeRoute,
