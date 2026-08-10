@@ -239,6 +239,7 @@ function TutorDash() {
         <TabsTrigger value="cohorts">My Cohorts</TabsTrigger>
         <TabsTrigger value="chat">Ask &amp; Answer</TabsTrigger>
         <TabsTrigger value="recordings">Class Recordings</TabsTrigger>
+        <TabsTrigger value="profile">My Profile</TabsTrigger>
       </TabsList>
 
       <TabsContent value="cohorts" className="mt-6 grid gap-4 md:grid-cols-2">
@@ -479,6 +480,7 @@ function AdminDash() {
         <TabsTrigger value="fields">Fields</TabsTrigger>
         <TabsTrigger value="cohorts">Cohorts</TabsTrigger>
         <TabsTrigger value="tutors">Tutor Applications</TabsTrigger>
+        <TabsTrigger value="team">Management Team</TabsTrigger>
         <TabsTrigger value="graduate">Graduate School</TabsTrigger>
       </TabsList>
 
@@ -505,6 +507,7 @@ function AdminDash() {
       <TabsContent value="cohorts" className="mt-6"><AdminCohortsPanel /></TabsContent>
       <TabsContent value="fields" className="mt-6"><AdminFieldsPanel /></TabsContent>
       <TabsContent value="tutors" className="mt-6"><AdminTutorApplicationsPanel /></TabsContent>
+      <TabsContent value="team" className="mt-6"><AdminTeamPanel /></TabsContent>
       <TabsContent value="graduate" className="mt-6"><AdminGraduatePanel /></TabsContent>
     </Tabs>
   );
