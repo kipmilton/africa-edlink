@@ -23,6 +23,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { FileUploadField } from "@/components/site/FileUploadField";
 import { uploadFile } from "@/lib/storage";
+import { useTeam, type TeamProfile, type TeamPayload } from "@/lib/team";
 import {
   Users, GraduationCap, MessageSquare, BookOpen, Wallet, Plus, Award, Send, Upload, Share2, AlertTriangle, CheckCircle2, Video, XCircle, UserCheck,
 } from "lucide-react";
