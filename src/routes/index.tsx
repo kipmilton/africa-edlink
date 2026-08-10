@@ -27,6 +27,7 @@ import {
 import { cn } from "@/lib/utils";
 import heroImg from "@/assets/hero.jpg";
 import { FieldExplorer } from "@/components/site/FieldExplorer";
+import { TeamGrid } from "@/components/site/TeamGrid";
 
 export const Route = createFileRoute("/")({
   head: () => ({
