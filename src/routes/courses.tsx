@@ -1,7 +1,7 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { useApp } from "@/lib/app-context";
-import { formatPrice } from "@/lib/currency";
+import { formatPrice, PRICE_CURRENCIES, type Currency } from "@/lib/currency";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -52,7 +52,7 @@ function CourseImage({
 }
 
 function CoursesPage() {
-  const { t, lang, courseFields, courses, currency, catalogLoading } = useApp();
+  const { t, lang, courseFields, courses, currency, catalogLoading, setCurrency } = useApp();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const search = useRouterState({ select: (state) => state.location.search });
 
@@ -87,6 +87,11 @@ function CoursesPage() {
     if (!selectedFieldSlug) return courses;
     return courses.filter((course) => course.fieldSlug === selectedFieldSlug);
   }, [courses, selectedFieldSlug]);
+
+  const availableCurrencies = useMemo<Currency[]>(
+    () => Array.from(new Set<Currency>([...PRICE_CURRENCIES, currency])),
+    [currency],
+  );
 
   if (pathname !== "/courses") {
     return <Outlet />;
@@ -192,7 +197,29 @@ function CoursesPage() {
                 <div className="mt-4 text-lg font-bold text-primary">
                   {formatPrice(c.basePriceUSD, currency)}
                 </div>
-                <p className="mt-1 text-xs font-medium text-muted-foreground">
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <span className="font-semibold text-foreground/80">
+                    {lang === "en" ? "View price in" : "Voir le prix en"}
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {availableCurrencies.map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => setCurrency(option)}
+                        className={cn(
+                          "rounded-full border px-3 py-1 text-xs font-semibold transition",
+                          currency === option
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border bg-white text-muted-foreground hover:border-primary hover:text-foreground",
+                        )}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <p className="mt-3 text-xs font-medium text-muted-foreground">
                   {c.durationWeeks} {lang === "en" ? "weeks" : "semaines"} · {c.cohortSize} {lang === "en" ? "learners per cohort" : "apprenants par cohorte"}
                 </p>
                 <div className="mt-auto flex gap-3 pt-6">

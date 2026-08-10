@@ -155,6 +155,16 @@ export function getBrowserLanguage(): UiLang {
   return locale.toLowerCase().startsWith("fr") ? "fr" : "en";
 }
 
+export const PRICE_CURRENCIES: Currency[] = [
+  "USD",
+  "KES",
+  "NGN",
+  "GHS",
+  "EUR",
+  "GBP",
+  "XOF",
+];
+
 export function formatPrice(baseUSD: number, currency: Currency): string {
   const value = convertUSDToCurrency(baseUSD, currency);
   try {

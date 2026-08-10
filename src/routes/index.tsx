@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   ArrowRight,
   Languages,
@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useApp } from "@/lib/app-context";
 import { useAuth } from "@/lib/use-auth";
+import { formatPrice, PRICE_CURRENCIES, type Currency } from "@/lib/currency";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -125,10 +126,14 @@ const reviewStorageKey = "serenog-reviews";
 /* ---------- Main component ---------- */
 
 function Index() {
-  const { t, lang, courses, catalogLoading } = useApp();
+  const { t, lang, courses, catalogLoading, currency, setCurrency } = useApp();
   const { user } = useAuth();
   const [selectedId, setSelectedId] = useState(courses[0]?.id);
   const selectedCourse = courses.find((c) => c.id === selectedId) ?? courses[0];
+  const availableCurrencies = useMemo<Currency[]>(
+    () => Array.from(new Set<Currency>([...PRICE_CURRENCIES, currency])),
+    [currency],
+  );
   const emptyCatalogMessage = catalogLoading
     ? lang === "en"
       ? "Initializing catalog…"
@@ -352,6 +357,32 @@ function Index() {
                   <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
                     {c.desc[lang]}
                   </p>
+
+                  <div className="mt-4 text-lg font-bold text-primary">
+                    {formatPrice(c.basePriceUSD, currency)}
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <span className="font-semibold text-foreground/80">
+                      {lang === "en" ? "Price in" : "Prix en"}
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      {availableCurrencies.map((option) => (
+                        <button
+                          key={option}
+                          type="button"
+                          onClick={() => setCurrency(option)}
+                          className={cn(
+                            "rounded-full border px-3 py-1 text-xs font-semibold transition",
+                            currency === option
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "border-border bg-white text-muted-foreground hover:border-primary hover:text-foreground",
+                          )}
+                        >
+                          {option}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
                   <div className="mt-6 flex gap-3">
                     <Button asChild size="sm" className="flex-1 rounded-lg">

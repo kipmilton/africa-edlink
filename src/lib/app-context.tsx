@@ -141,6 +141,7 @@ type AppCtx = {
   issueCertificate: (pendingId: string, fileDataUrl?: string) => void;
   country: string;
   currency: Currency;
+  setCurrency: (currency: Currency) => void;
   tutorApplications: TutorApplication[];
   addTutorApplication: (a: Omit<TutorApplication, "id" | "status" | "assignedCohort" | "createdAt">) => void;
   updateTutorApplication: (id: string, updates: Partial<TutorApplication>) => void;
@@ -936,6 +937,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         issueCertificate,
         country,
         currency,
+        setCurrency,
         tutorApplications,
         addTutorApplication,
         updateTutorApplication,
