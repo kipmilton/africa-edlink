@@ -274,10 +274,7 @@ function EnrollPage() {
 
     setSubmitting(true);
     try {
-      const response = await fetch("/api/payments/initialize", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
+      const init: PaymentInitializationResult = await initializePayment({
           studentData: {
             fullName: cleanName,
             email: cleanEmail,
@@ -295,15 +292,10 @@ function EnrollPage() {
           courseId: course.id,
           courseTitle: course.title.en,
           countryCode: selectedCountry?.code ?? country,
-          language_code: preferredLanguage,
-          cluster_code: selectedCluster.code,
           amount: amountToRecord,
           currency: selectedCurrency,
           paymentOption: payOption,
-        }),
       });
-      if (!response.ok) throw new Error("Payment initialization failed");
-      const init = (await response.json()) as PaymentInitializationResult;
       await openCheckout(init);
     } catch {
       toast.error("Unable to start payment. Please try again.");
